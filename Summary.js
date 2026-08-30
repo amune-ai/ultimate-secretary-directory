@@ -15,7 +15,7 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
   var perSec = {};
   function bucket(name) {
     if (!perSec[name]) {
-      perSec[name] = { secretary: name, done: 0, sent: 0, untick: 0, oldestPendingHours: 0 };
+      perSec[name] = { secretary: name, done: 0, sent: 0, untick: 0, wrong: 0, fixed: 0, oldestPendingHours: 0 };
     }
     return perSec[name];
   }
@@ -41,14 +41,23 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
   var now = Date.now();
   Object.keys(dataRowsBySheet || {}).forEach(function (sheetName) {
     dataRowsBySheet[sheetName].forEach(function (row) {
-      if (isDone_(row[COL.DONE])) return;
       var sec = String(row[COL.SECRETARIAT] == null ? '' : row[COL.SECRETARIAT]).trim();
       if (!sec) return;
-      var t = asDate(row[COL.TIMESTAMP]);
-      if (!t) return;
-      var hrs = (now - t.getTime()) / 3600000;
       var b = bucket(sec);
-      if (hrs > b.oldestPendingHours) b.oldestPendingHours = hrs;
+
+      // current تعديل state (col P/Q) — live, not date-filtered
+      var mstate = modifyState_(row[COL.MODIFY_WRONG], row[COL.MODIFY_FIXED]);
+      if (mstate === 'wrong') b.wrong++;
+      else if (mstate === 'fixed') b.fixed++;
+
+      // oldest still-pending (no طباعة yet)
+      if (!isDone_(row[COL.DONE])) {
+        var t = asDate(row[COL.TIMESTAMP]);
+        if (t) {
+          var hrs = (now - t.getTime()) / 3600000;
+          if (hrs > b.oldestPendingHours) b.oldestPendingHours = hrs;
+        }
+      }
     });
   });
 
@@ -56,6 +65,7 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
     var b = perSec[k];
     return {
       secretary: b.secretary, done: b.done, sent: b.sent, untick: b.untick,
+      wrong: b.wrong, fixed: b.fixed,
       oldestPendingHours: Math.round(b.oldestPendingHours * 10) / 10
     };
   });

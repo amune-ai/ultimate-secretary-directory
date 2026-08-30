@@ -2,7 +2,7 @@
  * One-time / idempotent setup. Adds the four tracking-column headers
  * (DoneAt, DoneBy, SentAt, SentBy = columns L..O) to every data tab if
  * they are not already present. Never touches existing data. Safe to
- * re-run. Run manually from the Apps Script editor after deploying.
+ * re-run. Run manually from the Apps Script editor.
  */
 function setup() {
   var ss = getSpreadsheet_();
@@ -57,94 +57,4 @@ function runTests() {
   throws(function () { requireSession_(made.token); }, 'session invalid after logout');
 
   Logger.log('runTests: ALL PASS');
-}
-
-/**
- * Prints the Login tab exactly as the server reads it — username and name
- * verbatim, password as a character count plus a "quoted" copy so stray
- * spaces are visible. Use it to confirm each Name matches the سكرتارية
- * column spelling. (Execution log is visible only to you.)
- */
-function dumpLogin() {
-  var rows = readLoginRows_();
-  Logger.log('Login tab: ' + rows.length + ' row(s)');
-  rows.forEach(function (r, i) {
-    Logger.log(
-      'row ' + (i + 2) + ' | username="' + r.username + '"' +
-      ' | password ' + String(r.password).length + ' chars ["' + r.password + '"]' +
-      ' | name="' + r.name + '"'
-    );
-  });
-}
-
-/**
- * Real end-to-end login test. Put a genuine username + password below,
- * Run, read the log:
- *   {"ok":true,"role":"...","name":"..."}  -> login works
- *   {"ok":false,"error":"bad_credentials"} -> username/password mismatch
- *   {"ok":false,"error":"locked"}          -> 5 bad tries, wait 15 min
- */
-function tryLogin() {
-  var USERNAME = 'PUT_USERNAME_HERE';
-  var PASSWORD = 'PUT_PASSWORD_HERE';
-  var res = login(USERNAME, PASSWORD);
-  Logger.log(JSON.stringify(res));
-}
-
-/**
- * Logs in with the credentials below, then calls getBootstrapData with that
- * token — the exact server path that runs right after login in the browser.
- * Logs the role, name, and how many rows each tab returns (scoped for a
- * secretary, everything for the admin).
- */
-function tryBootstrap() {
-  var USERNAME = 'PUT_USERNAME_HERE';
-  var PASSWORD = 'PUT_PASSWORD_HERE';
-  var lg = login(USERNAME, PASSWORD);
-  if (!lg.ok) { Logger.log('login failed: ' + JSON.stringify(lg)); return; }
-  var data = getBootstrapData(lg.token);
-  Logger.log('role=' + data.role + '  name="' + data.name + '"');
-  Object.keys(data.tabsData).forEach(function (k) {
-    Logger.log(k + ': ' + data.tabsData[k].length + ' row(s)');
-  });
-  logout(lg.token);
-}
-
-/**
- * Logs in, then sets Done on one row (by its Code / column E value) and
- * clears it again — exercising writeTick_ + the ActivityLog append. Fill in
- * a real CODE from column E of a row in the chosen SHEET.
- */
-function tryTick() {
-  var USERNAME = 'PUT_USERNAME_HERE';
-  var PASSWORD = 'PUT_PASSWORD_HERE';
-  var SHEET = 'UploadedData';
-  var CODE = 'PUT_A_REAL_CODE_FROM_COLUMN_E';
-  var lg = login(USERNAME, PASSWORD);
-  if (!lg.ok) { Logger.log('login failed: ' + JSON.stringify(lg)); return; }
-  Logger.log('set Done  -> ' + JSON.stringify(writeTick_(lg.token, SHEET, CODE, 0, 'done', true)));
-  Logger.log('clear Done -> ' + JSON.stringify(writeTick_(lg.token, SHEET, CODE, 0, 'done', false)));
-  logout(lg.token);
-}
-
-/**
- * Admin-only. Logs in as the admin and prints getAdminSummary for a day:
- * per-secretary Done/Sent/un-tick counts, average Done->Sent minutes, and
- * the oldest still-pending request age. DATE '' means today.
- */
-function trySummary() {
-  var USERNAME = 'a1';
-  var PASSWORD = 'PUT_ADMIN_PASSWORD_HERE';
-  var DATE = ''; // '' = today, or 'yyyy-MM-dd'
-  var lg = login(USERNAME, PASSWORD);
-  if (!lg.ok) { Logger.log('login failed: ' + JSON.stringify(lg)); return; }
-  var res = getAdminSummary(lg.token, DATE);
-  Logger.log('summary for ' + res.date + ':');
-  res.rows.forEach(function (r) {
-    Logger.log(
-      r.secretary + '  done=' + r.done + '  sent=' + r.sent + '  untick=' + r.untick +
-      '  avgMin=' + r.avgMinutes + '  oldestPendingH=' + r.oldestPendingHours
-    );
-  });
-  logout(lg.token);
 }

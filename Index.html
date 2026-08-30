@@ -344,8 +344,8 @@
       <div class="table-scroll">
         <table class="data-table" id="summaryTable" aria-label="ملخص الأداء">
           <thead><tr>
-            <th>السكرتارية</th><th>منجز</th><th>أنجاز</th><th>تراجع</th>
-            <th>متوسط الدقائق (منجز→أنجاز)</th><th>أقدم طلب معلّق (ساعات)</th>
+            <th>السكرتارية</th><th>طباعة</th><th>أنجاز</th><th>تراجع</th>
+            <th>أقدم طلب معلّق (ساعات)</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -812,7 +812,7 @@
       tbody.innerHTML = '';
       var rows = (res && res.rows) || [];
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-row">لا يوجد نشاط لهذا اليوم</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">لا يوجد نشاط لهذا اليوم</td></tr>';
         return;
       }
       rows.forEach(function (r) {
@@ -822,7 +822,6 @@
           '<td>' + r.done + '</td>' +
           '<td>' + r.sent + '</td>' +
           '<td>' + r.untick + '</td>' +
-          '<td>' + (r.avgMinutes == null ? '—' : r.avgMinutes) + '</td>' +
           '<td>' + r.oldestPendingHours + '</td>';
         tbody.appendChild(tr);
       });

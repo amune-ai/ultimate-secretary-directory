@@ -1,7 +1,7 @@
 /**
- * Admin summary: per-secretary Done/Sent/un-tick counts for a given day,
- * average Done->Sent minutes for that day, and the oldest still-pending
- * request age. Pure aggregation + a thin getAdminSummary wrapper.
+ * Admin summary: per-secretary Done(طباعة)/Sent(أنجاز)/un-tick(تراجع) counts
+ * for a given day, plus the oldest still-pending request age (live, in hours).
+ * Pure aggregation + a thin getAdminSummary wrapper.
  */
 
 function dateInTz_(dateObj, tz) {
@@ -15,7 +15,7 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
   var perSec = {};
   function bucket(name) {
     if (!perSec[name]) {
-      perSec[name] = { secretary: name, done: 0, sent: 0, untick: 0, _lat: [], oldestPendingHours: 0 };
+      perSec[name] = { secretary: name, done: 0, sent: 0, untick: 0, oldestPendingHours: 0 };
     }
     return perSec[name];
   }
@@ -38,17 +38,6 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
     else if (action === 'sent') b.sent++;
   });
 
-  Object.keys(dataRowsBySheet || {}).forEach(function (sheetName) {
-    dataRowsBySheet[sheetName].forEach(function (row) {
-      var s = asDate(row[COL.SENT_AT]);
-      var d = asDate(row[COL.DONE_AT]);
-      if (s && d && dateInTz_(s, tz) === dateStr) {
-        var sec = String(row[COL.SECRETARIAT] == null ? '' : row[COL.SECRETARIAT]).trim();
-        if (sec) bucket(sec)._lat.push((s.getTime() - d.getTime()) / 60000);
-      }
-    });
-  });
-
   var now = Date.now();
   Object.keys(dataRowsBySheet || {}).forEach(function (sheetName) {
     dataRowsBySheet[sheetName].forEach(function (row) {
@@ -65,12 +54,9 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
 
   return Object.keys(perSec).sort().map(function (k) {
     var b = perSec[k];
-    var avg = b._lat.length
-      ? Math.round(b._lat.reduce(function (x, y) { return x + y; }, 0) / b._lat.length)
-      : null;
     return {
       secretary: b.secretary, done: b.done, sent: b.sent, untick: b.untick,
-      avgMinutes: avg, oldestPendingHours: Math.round(b.oldestPendingHours * 10) / 10
+      oldestPendingHours: Math.round(b.oldestPendingHours * 10) / 10
     };
   });
 }

@@ -739,7 +739,8 @@
         var msheet = TABS_CONFIG[activeIndex].sheetName;
         var cur = modBtn.classList.contains('modify-wrong') ? 'wrong'
                 : modBtn.classList.contains('modify-fixed') ? 'fixed' : 'none';
-        var next = cur === 'none' ? 'wrong' : (cur === 'wrong' ? 'fixed' : 'none');
+        // Loop only between wrong <-> fixed; first click from untouched -> wrong.
+        var next = cur === 'wrong' ? 'fixed' : 'wrong';
         modBtn.disabled = true;
         google.script.run
           .withSuccessHandler(function (updated) {

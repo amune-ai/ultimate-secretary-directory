@@ -9,6 +9,9 @@
       --row-alt: #fafafa;
     }
     * { box-sizing: border-box; }
+    /* the hidden attribute must always win, even over display:flex classes
+       like .login-view / .summary-panel */
+    [hidden] { display: none !important; }
     html, body {
       direction: rtl;
     }

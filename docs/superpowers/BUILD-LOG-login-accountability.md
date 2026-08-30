@@ -1,0 +1,108 @@
+# Build Log — Login + Accountability
+
+A narrative record of how the login / per-secretary accountability feature was
+designed, built, and shipped. Two working sessions on 2026-08-30 → 2026-08-31.
+
+## The problem it solves
+
+The "Uploads Dashboard" web app was an anonymous shared checklist: anyone with
+the URL saw all rows (names, national IDs, sick-leave records) and could tick
+`Done` / `أنجاز` on any row. The admin (1 person) wanted to monitor 5
+secretaries — who did what, when — but the app recorded neither identity nor
+time. It also had two security holes (an unvalidated `sheetName` on the write
+endpoints, and a `</script>` breakout via embedded data), which were fixed
+first.
+
+## Design decisions
+
+- **Custom username/password login**, because the secretaries have no Google
+  accounts. `Login` tab: `Username | Password | Name`. Passwords are plaintext
+  — a deliberate, documented ceiling: the sheet only lives with the admin, and
+  the alternative (rolling a KDF in Apps Script) wasn't worth it. Upgrade path
+  noted in `Auth.js`.
+- **Sessions** = random token (two UUIDs) in Script Properties, 8h sliding
+  expiry, deleted on logout. Brute-force lockout: 5 wrong tries per username →
+  15-minute block (CacheService).
+- **Per-secretary scoping**: a secretary sees only rows whose `سكرتارية`
+  column equals their `Login` `Name`; `a1` is the admin and sees everything.
+  Enforced server-side on both reads and writes.
+- **Stable row key = column E `Code`**, not the sheet row number — so a tick
+  can't land on the wrong row after a sort/insert.
+- **Accountability data**: every tick stamps `DoneAt/DoneBy/SentAt/SentBy`
+  (new columns L:O) and appends to an `ActivityLog` tab
+  (`timestamp|sheet|code|username|name|action|old|new`). Un-ticking `Done`
+  cascades to clear `Sent` (a row must never be Sent-but-not-Done).
+- **Admin summary panel**: per-secretary Done/Sent/un-tick counts for a chosen
+  day, average Done→Sent minutes, oldest still-pending request age.
+- Deliberately **stayed on Apps Script + vanilla JS** — no framework, no
+  build step, no database. Sized for 6 users.
+
+## How it was built
+
+**First attempt** (2026-08-30): a full 13-task plan executed with
+subagent-driven development — spec, plan, task-by-task implementation with
+per-task code review and a final whole-branch review (Opus). All code written
+and reviewed on branch `login-accountability`. The full record — ledger,
+per-task briefs, per-task and final review reports — is in
+`sdd-archive-2026-08-30/`.
+
+Then live verification stalled: the Apps Script editor showed **"No functions"**
+with Run greyed out, and browser login appeared to fail. The session was paused
+and the project reverted to the pre-login state so the admin could keep working.
+
+**Second attempt** (2026-08-31): rebuilt on branch `login-accountability-v2`
+in **5 incremental slices**, pushing and verifying each in the live editor /
+test deployment before the next:
+
+1. L:O column constants + `setup()` — additive, no behavior change.
+2. `Auth.gs` — login / sessions / lockout. Verified with an editor `runTests`.
+3. Scoped reads (`getBootstrapData`) + tick engine (`Activity.gs writeTick_`).
+   Editor tests confirmed a secretary sees 28 rows vs the admin's 185, and
+   that a tick writes L:O + appends to `ActivityLog`.
+4. `Summary.gs getAdminSummary` — verified the per-secretary rollup.
+5. Client (`Index.html`) — login form, session resume, scoped dashboard,
+   Code-keyed ticks, admin summary panel.
+
+## The two red herrings that cost the most time
+
+1. **"No functions" / greyed Run.** The Apps Script editor's Run dropdown
+   does **not** list `_`-suffixed function names, and it only shows functions
+   from the *currently open file*. A file (`Setup.gs`) whose only functions
+   were `setup_` / `runTests_` therefore showed "No functions". The project
+   was never broken. Fix: name editor-runnable helpers without a trailing
+   underscore.
+
+2. **"Login page stays".** Login and the post-login data fetch worked the
+   whole time — but `.login-view { display: flex }` in the CSS overrode the
+   `hidden` attribute (author class beats the UA `[hidden]{display:none}`
+   rule), so the login form stayed on screen sitting on top of the
+   fully-loaded dashboard. One-line fix:
+   `[hidden] { display: none !important; }`.
+
+## Also restored
+
+`syncDataFast` — a standalone job that pulls the `DocName` tab from an
+external "أسماء الاطباء" spreadsheet. It had only survived in a deleted
+backup file; its time trigger was erroring. Recovered verbatim into `Code.js`.
+
+## Shipped
+
+2026-08-31 — deployed to production deployment
+`AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`
+as `@13`. `login-accountability-v2` fast-forward merged to `main`.
+
+## Left to the admin (not code)
+
+- Rotate the وضحة password (it was exposed during debugging).
+- Hand each secretary their username + password from the `Login` tab.
+- Optionally lengthen the short passwords.
+- If a secretary sees an empty dashboard: their `Login` `Name` doesn't match
+  the `سكرتارية` column spelling on their rows — fix the Name to match.
+
+## Known ceilings (deliberate, still open)
+
+- Plaintext passwords in the `Login` tab.
+- Sliding sessions with no absolute lifetime cap.
+- `setup` / `runTests` are callable anonymously (low harm — idempotent /
+  throwaway).
+- No `LockService` around tick writes (fine at 6 users on mostly-distinct rows).

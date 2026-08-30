@@ -20,7 +20,7 @@ Login and data-load were never broken.
    `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O` (@12)
    still runs the old no-login version. Go live with:
    `clasp deploy --deploymentId AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O --description "Login + accountability v2"`
-2. **Rotate `xxxxxxxxx`** (وضحة …) in the Login tab — exposed repeatedly in chat + local git. Ideally set every Login password to 12+ chars.
+2. **Rotate `(redacted — see Login tab)`** (وضحة …) in the Login tab — exposed repeatedly in chat + local git. Ideally set every Login password to 12+ chars.
 3. **Merge** `login-accountability-v2` → `main` (squash keeps history clean).
 
 ## Notes

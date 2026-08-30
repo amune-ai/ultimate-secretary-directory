@@ -698,7 +698,8 @@
 
       var donePageInfo = paginateDoneByDay(doneRows);
       var doneSentCount = doneRows.filter(function (r) { return r.sent; }).length;
-      var doneWrongCount = doneRows.filter(function (r) { return r.modify === 'wrong'; }).length;
+      // خطأ انجاز = every row ever flagged (col P set); تعديل = those since fixed (col Q set)
+      var doneWrongCount = doneRows.filter(function (r) { return r.modify === 'wrong' || r.modify === 'fixed'; }).length;
       var doneModifyCount = doneRows.filter(function (r) { return r.modify === 'fixed'; }).length;
 
       var wrap = document.getElementById('tableWrap');
@@ -760,6 +761,7 @@
           .withSuccessHandler(function (updated) {
             updateLocalModifyState(msheet, mcode, updated.modify);
             renderTable();
+            refreshSummaryIfAdmin();
           })
           .withFailureHandler(function (err) {
             modBtn.disabled = false;
@@ -821,6 +823,7 @@
         .withSuccessHandler(function (updated) {
           updateLocalTickState(sheetName, code, updated);
           renderTable();
+          refreshSummaryIfAdmin();
         })
         .withFailureHandler(function (err) {
           checkbox.disabled = false;
@@ -966,6 +969,10 @@
         });
       if (initial) runner.getBootstrapData(SESSION.token);
       else runner.refreshTabsData(SESSION.token);
+    }
+
+    function refreshSummaryIfAdmin() {
+      if (SESSION.role === 'admin' && typeof loadSummary === 'function') loadSummary();
     }
 
     function loadSummary() {

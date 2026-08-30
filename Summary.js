@@ -45,10 +45,12 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
       if (!sec) return;
       var b = bucket(sec);
 
-      // current تعديل state (col P/Q) — live, not date-filtered
+      // تعديل state (col P/Q) — live, not date-filtered.
+      // wrong = ever flagged (col P set, stays counted after fixing);
+      // fixed = of those, the ones since corrected (col Q set).
       var mstate = modifyState_(row[COL.MODIFY_WRONG], row[COL.MODIFY_FIXED]);
-      if (mstate === 'wrong') b.wrong++;
-      else if (mstate === 'fixed') b.fixed++;
+      if (mstate === 'wrong' || mstate === 'fixed') b.wrong++;
+      if (mstate === 'fixed') b.fixed++;
 
       // oldest still-pending (no طباعة yet)
       if (!isDone_(row[COL.DONE])) {

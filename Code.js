@@ -31,6 +31,16 @@
 
 var SPREADSHEET_ID = '1siA7v8Ib3tWyI-GNUHr-baUK2o61qQtZVWxsHcZBShA';
 
+// --- Login + session config (added incrementally, slice 2) ---
+var ADMIN_USERNAME = 'a1';   // this username gets the admin view; everyone else is a secretary
+var LOGIN_SHEET = 'Login';   // tab layout: Username | Password | Name
+
+var SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8h, slid forward on each authenticated call
+var SESSION_PREFIX = 'sess_';            // Script Property key prefix for sessions
+
+var LOCKOUT_MAX = 5;         // wrong tries before a username is blocked
+var LOCKOUT_WINDOW_S = 900;  // block duration in seconds (15 min)
+
 var TABS_CONFIG = [
   {
     sheetName: 'UploadedData',

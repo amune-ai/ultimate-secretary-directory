@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    /**
+ * ============================================================
+ * UPLOADS DASHBOARD — Web App
+ * ============================================================
+ * Shows 3 sheet tabs (UploadedData, UploadedVacations,
+ * UploadedEqrarawdah) as a tabbed web app with custom labels,
+ * custom header colors, a PDF icon that opens the file in a new
+ * browser window, and a "Done" tick column that turns the row
+ * green and writes "Done" into column J of that sheet row.
+ *
+ * SETUP:
+ * 1. Open your Google Sheet.
+ * 2. Extensions > Apps Script.
+ * 3. Replace the default Code.gs content with this file.
+ * 4. Add a new HTML file named exactly "Index" and paste the
+ *    Index.html content into it.
+ * 5. Deploy > New deployment > type: Web app.
+ *      - Execute as: Me
+ *      - Who has access: choose based on who should view it
+ *        (Anyone / Anyone within your org / Only myself)
+ * 6. Click Deploy, authorize the requested permissions, and
+ *    open the resulting web app URL.
+ *
+ * NOTE: Because this script is opened from inside the sheet
+ * (Extensions > Apps Script), it is "bound" to that spreadsheet,
+ * so getSpreadsheet_() below will automatically use it — no ID
+ * needed. SPREADSHEET_ID is kept only as a fallback in case you
+ * ever copy this into a standalone script project instead.
+ */
+
+var SPREADSHEET_ID = '1siA7v8Ib3tWyI-GNUHr-baUK2o61qQtZVWxsHcZBShA';
+
+var TABS_CONFIG = [
+  {
+    sheetName: 'UploadedData',
+    label: 'Sick leaves uploads',
+    headerBg: '#D32F2F',   // red
+    headerColor: '#FFFFFF' // white
+  },
+  {
+    sheetName: 'UploadedVacations',
+    label: 'Vacations uploads',
+    headerBg: '#FFC107',   // yellow
+    headerColor: '#000000' // black
+  },
+  {
+    sheetName: 'UploadedEqrarawdah',
+    label: 'إعلام عودة uploads',
+    headerBg: '#001F54',   // navy
+    headerColor: '#FFFFFF' // white
+  }
+];
+
+// Display order in the web app. "Done" is the tick/checkbox column.
+var COLUMN_HEADERS = ['Timestamp', 'Name', 'ID', 'Center', 'Summary Dropdown', 'سكرتارية', 'Code', 'PDF Links', 'Done'];
+
+// Where each field actually lives in the sheet (0-based index within
+// the A:J range read below). Column B is currently unused.
+var COL = {
+  TIMESTAMP: 0, // A
+  ID: 2,        // C
+  SUMMARY: 3,   // D
+  CODE: 4,      // E
+  PDF: 5,       // F
+  NAME: 6,      // G
+  CENTER: 7,    // H
+  SECRETARIAT: 8, // I
+  DONE: 9       // J
+};
+var SHEET_COLUMN_COUNT = 10; // A:J
+
+function doGet(e) {
+  var template = HtmlService.createTemplateFromFile('Index');
+  template.tabsConfigJson = JSON.stringify(TABS_CONFIG);
+  template.columnHeadersJson = JSON.stringify(COLUMN_HEADERS);
+  template.tabsDataJson = JSON.stringify(getAllTabsData_());
+  return template.evaluate()
+    .setTitle('Uploads Dashboard')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function getSpreadsheet_() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) return ss;
+  } catch (err) {
+    // not bound to a spreadsheet, fall through to openById
+  }
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+// Public entry point the client calls (via google.script.run) to re-pull
+// fresh data from the sheet without reloading the whole page. Apps Script
+// won't let client code call a function whose name ends in "_", which is
+// why getAllTabsData_() itself can't be called directly from Index.html.
+function refreshTabsData() {
+  return getAllTabsData_();
+}
+
+// Public entry point the client calls when the tick checkbox is toggled.
+// Writes "Done" (or clears it) into column J of that exact row.
+// sheetRow is the real 1-based row number in the sheet, returned to the
+// client as part of each row's data so it round-trips back here.
+function setRowDone(sheetName, sheetRow, done) {
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Sheet not found: ' + sheetName);
+  sheet.getRange(sheetRow, COL.DONE + 1).setValue(done ? 'Done' : '');
+  return true;
+}
+
+function getAllTabsData_() {
+  var ss = getSpreadsheet_();
+  var result = {};
+  TABS_CONFIG.forEach(function (tab) {
+    result[tab.sheetName] = getSheetRows_(ss, tab.sheetName);
+  });
+  return result;
+}
+
+function getSheetRows_(ss, sheetName) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return [];
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return []; // no data below header row
+
+  // Always read a fixed A:I so columns line up correctly even if the
+  // sheet's last-used column is narrower on a given day (e.g. no rows
+  // have "سكرتارية" filled in yet).
+  var range = sheet.getRange(2, 1, lastRow - 1, SHEET_COLUMN_COUNT);
+  var values = range.getValues();
+
+  // Attach each row's real sheet row number *before* filtering/sorting,
+  // since those steps change array order/length and we need this later
+  // to write "Done" back into the correct row.
+  var indexed = values.map(function (row, i) {
+    return { row: row, sheetRow: i + 2 };
+  });
+
+  return indexed
+    .filter(function (item) {
+      return item.row.some(function (cell) { return cell !== '' && cell !== null; });
+    })
+    .sort(function (a, b) {
+      // Newest first. Sort on the raw timestamp value (before it gets
+      // turned into a display string) so it sorts correctly even if
+      // the column holds real Date objects or timestamp text.
+      return timestampValue_(b.row[COL.TIMESTAMP]) - timestampValue_(a.row[COL.TIMESTAMP]);
+    })
+    .map(function (item) {
+      var row = item.row;
+      // Reorder from physical sheet layout (A:J) into display order:
+      // Timestamp, Name, ID, Center, Summary Dropdown, سكرتارية, Code, PDF Links
+      return {
+        sheetRow: item.sheetRow,
+        done: isDone_(row[COL.DONE]),
+        cells: [
+          formatTimestamp_(row[COL.TIMESTAMP]),
+          row[COL.NAME] || '',
+          row[COL.ID] || '',
+          row[COL.CENTER] || '',
+          row[COL.SUMMARY] || '',
+          row[COL.SECRETARIAT] || '',
+          row[COL.CODE] || '',
+          row[COL.PDF] || ''
+        ]
+      };
+    });
+}
+
+function isDone_(value) {
+  return String(value || '').trim().toLowerCase() === 'done';
+}
+
+function timestampValue_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return value.getTime();
+  }
+  var parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function formatTimestamp_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  }
+  return value || '';
+}
+
+
+
+
+function syncDataFast() {
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. CONFIGURATION: List your sources and destinations here
+  const syncJobs = [
+    {
+      sourceId: "1OWT7kh-yUzO_gn9qLmTjdOYZ9DKUDf3-HiyFwSFpTFE", // أسماء الاطباء
+      sourceTab: "DocName", 
+      sourceRange: "A1:S", 
+      destTab: "DocName", 
+      destRow: 1, 
+      destCol: 1
+    }
+  ];
+
+  // 2. EXECUTION: Loop through each job defined above
+  syncJobs.forEach(function(job) {
+    try {
+      // Connect to Source
+      const sourceSS = SpreadsheetApp.openById(job.sourceId);
+      const sourceSheet = sourceSS.getSheetByName(job.sourceTab);
+      const data = sourceSheet.getRange(job.sourceRange).getValues();
+
+      // Connect to Destination
+      const destSheet = destSS.getSheetByName(job.destTab);
+      
+      // Clear ONLY the area where data is about to be pasted
+      // This prevents old data from staying behind if the new pull is smaller
+      destSheet.getRange(job.destRow, job.destCol, destSheet.getLastRow() || 1, data[0].length).clearContent();
+
+      // Paste the fresh data
+      destSheet.getRange(job.destRow, job.destCol, data.length, data[0].length).setValues(data);
+      
+      console.log(`Success: ${job.sourceTab} synced to ${job.destTab}`);
+      
+    } catch (e) {
+      console.log(`Error syncing ${job.sourceTab}: ${e.message}`);
+    }
+  });
+
+  console.log("Global Sync Finished: " + new Date());
+}
+  </body>
+</html>

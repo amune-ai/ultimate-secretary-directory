@@ -87,12 +87,11 @@ var COL = {
 var SHEET_COLUMN_COUNT = 15; // A:O  (includes the L:O accountability columns)
 
 function doGet(e) {
+  // No sheet data is embedded in the page — the client fetches it via
+  // getBootstrapData only after a successful login.
   var template = HtmlService.createTemplateFromFile('Index');
   template.tabsConfigJson = JSON.stringify(TABS_CONFIG);
   template.columnHeadersJson = JSON.stringify(COLUMN_HEADERS);
-  // Escape "<" so a cell containing "</script>" can't break out of the
-  // inline <script> block in Index.html. "<" still parses as "<".
-  template.tabsDataJson = JSON.stringify(getAllTabsData_()).replace(/</g, '\\u003c');
   return template.evaluate()
     .setTitle('Uploads Dashboard')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -109,52 +108,20 @@ function getSpreadsheet_() {
   return SpreadsheetApp.openById(SPREADSHEET_ID);
 }
 
-// Public entry point the client calls (via google.script.run) to re-pull
-// fresh data from the sheet without reloading the whole page. Apps Script
-// won't let client code call a function whose name ends in "_", which is
-// why getAllTabsData_() itself can't be called directly from Index.html.
-function refreshTabsData() {
-  return getAllTabsData_();
+// Client refresh button. Token-gated; scoped for secretaries, everything for admin.
+function refreshTabsData(token) {
+  var session = requireSession_(token);
+  return readAllTabs_(session.role === 'admin' ? null : session.name);
 }
 
-// The web app is deployed with anonymous access, so anyone can call the
-// functions below. Reject any sheetName that isn't one of our configured
-// tabs before writing anything.
+// Reject any sheetName that isn't one of our configured tabs before writing.
 function assertKnownSheet_(sheetName) {
   var known = TABS_CONFIG.some(function (t) { return t.sheetName === sheetName; });
   if (!known) throw new Error('Unknown sheet: ' + sheetName);
 }
 
-// Public entry point the client calls when the tick checkbox is toggled.
-// Writes "Done" (or clears it) into column J of that exact row.
-// sheetRow is the real 1-based row number in the sheet, returned to the
-// client as part of each row's data so it round-trips back here.
-function setRowDone(sheetName, sheetRow, done) {
-  assertKnownSheet_(sheetName);
-  var ss = getSpreadsheet_();
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error('Sheet not found: ' + sheetName);
-  sheet.getRange(sheetRow, COL.DONE + 1).setValue(done ? 'Done' : '');
-  return true;
-}
-
-// Same idea as setRowDone(), for the "أنجاز" tick column. Writes "Sent"
-// (or clears it) into column K of that exact row.
-function setRowSent(sheetName, sheetRow, sent) {
-  assertKnownSheet_(sheetName);
-  var ss = getSpreadsheet_();
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error('Sheet not found: ' + sheetName);
-  sheet.getRange(sheetRow, COL.SENT + 1).setValue(sent ? 'Sent' : '');
-  return true;
-}
-
-// Unscoped read of all tabs — used by the current (pre-login) doGet embed and
-// the no-arg refreshTabsData. Superseded by getBootstrapData once the client
-// sends a token (slice 5).
-function getAllTabsData_() {
-  return readAllTabs_(null);
-}
+// setRowDone / setRowSent (token-based, Code-keyed, ActivityLog-stamped) live
+// in Activity.js.
 
 // scope = a secretary name to filter to, or null/'' for everything (admin).
 function readAllTabs_(scope) {

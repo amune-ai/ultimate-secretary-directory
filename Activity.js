@@ -89,3 +89,13 @@ function writeTick_(token, sheetName, code, rowHint, action, value) {
               : (action === 'done' && !value ? false : isSent_(row[COL.SENT]));
   return { code: String(code).trim(), done: doneNow, sent: sentNow };
 }
+
+// Public entry points, called from the client as
+//   google.script.run.setRowDone(token, sheetName, code, sheetRowHint, checked)
+function setRowDone(token, sheetName, code, rowHint, done) {
+  return writeTick_(token, sheetName, code, rowHint, 'done', !!done);
+}
+
+function setRowSent(token, sheetName, code, rowHint, sent) {
+  return writeTick_(token, sheetName, code, rowHint, 'sent', !!sent);
+}

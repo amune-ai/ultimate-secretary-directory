@@ -250,10 +250,69 @@
     tr.row-sent .tick-checkbox {
       accent-color: #000080;
     }
+    .banner {
+      padding: 12px 16px; margin-bottom: 16px; border-radius: 8px;
+      font-size: 14px; cursor: pointer;
+    }
+    .banner.error { background: #fdecea; color: #b3261e; border: 1px solid #f6c9c4; }
+    .banner.info  { background: #e8f0fe; color: #1a56c4; border: 1px solid #c6dafc; }
+    .login-view {
+      min-height: 70vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: #fff; padding: 28px 26px; border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12); width: 320px; max-width: 90vw;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .login-card h2 { margin: 0 0 4px; font-size: 18px; color: #333; }
+    .login-card label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #444; }
+    .login-card input {
+      padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;
+    }
+    .login-card button {
+      margin-top: 4px; padding: 10px; border: none; border-radius: 6px;
+      background: #1a73e8; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .login-card button:disabled { opacity: 0.6; cursor: default; }
+    .login-error { margin: 0; color: #b3261e; font-size: 13px; }
+    .whoami { font-size: 12px; color: #666; margin-inline-start: 8px; }
+    .logout-btn {
+      border: 1px solid var(--border); background: #fff; color: #444;
+      border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+    }
+    .summary-panel {
+      background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      margin-bottom: 16px; overflow: hidden;
+    }
+    .summary-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 10px 14px; background: #f5f6f8; border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .summary-head input[type="date"] {
+      padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+    }
+    #summaryTable th { background: #37474f; color: #fff; }
   </style>
 </head>
 <body>
-  <div id="app">
+  <div id="banner" class="banner" hidden></div>
+
+  <div id="loginView" class="login-view">
+    <form id="loginForm" class="login-card">
+      <h2>تسجيل الدخول</h2>
+      <label>اسم المستخدم
+        <input type="text" id="loginUser" autocomplete="username" required>
+      </label>
+      <label>كلمة المرور
+        <input type="password" id="loginPass" autocomplete="current-password" required>
+      </label>
+      <button type="submit" id="loginBtn">دخول</button>
+      <p id="loginError" class="login-error" hidden></p>
+    </form>
+  </div>
+
+  <div id="app" hidden>
     <div class="toolbar">
       <div class="toolbar-left">
         <button id="refreshBtn" class="refresh-btn" title="Refresh data" aria-label="Refresh data">
@@ -261,7 +320,10 @@
             <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
           </svg>
         </button>
+        <span id="lastUpdated" class="whoami"></span>
         <h1>المباشرات والمرضيات والإجازات الي تم تحميلها على الموقع</h1>
+        <span id="whoami" class="whoami"></span>
+        <button id="logoutBtn" class="logout-btn" type="button">خروج</button>
       </div>
       <div class="filter-box">
         <label for="secretariatFilter">سكرتارية:</label>
@@ -271,13 +333,28 @@
       </div>
     </div>
     <div id="tabNav" class="tab-nav"></div>
+    <div id="summaryPanel" class="summary-panel" hidden>
+      <div class="summary-head">
+        <strong>ملخص اليوم لكل سكرتارية</strong>
+        <input type="date" id="summaryDate">
+      </div>
+      <div class="table-scroll">
+        <table class="data-table" id="summaryTable" aria-label="ملخص الأداء">
+          <thead><tr>
+            <th>السكرتارية</th><th>منجز</th><th>أنجاز</th><th>تراجع</th>
+            <th>متوسط الدقائق (منجز→أنجاز)</th><th>أقدم طلب معلّق (ساعات)</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
     <div id="tableWrap" class="table-wrap"></div>
   </div>
 
   <script>
     var TABS_CONFIG = <?!= tabsConfigJson ?>;
     var COLUMN_HEADERS = <?!= columnHeadersJson ?>;
-    var TABS_DATA = <?!= tabsDataJson ?>;
+    var TABS_DATA = {};
 
     var activeIndex = 0;
     var secretariatFilterValue = '';
@@ -359,7 +436,7 @@
     }
 
     function pdfIconCell(url) {
-      if (!url) return '<span class="no-pdf">&mdash;</span>';
+      if (!url || !/^https?:\/\//i.test(String(url))) return '<span class="no-pdf">&mdash;</span>';
       // href/target stay as a fallback for right-click "open in new tab" or if JS
       // fails to load; the click handler below intercepts normal clicks and forces
       // a real new browser window instead of a tab.
@@ -439,7 +516,7 @@
     function buildTableMarkup(tab, rows, emptyMessage, showSentColumn) {
       var headers = showSentColumn ? COLUMN_HEADERS : COLUMN_HEADERS.slice(0, COLUMN_HEADERS.length - 1);
 
-      var html = '<table class="data-table"><thead><tr>';
+      var html = '<table class="data-table" aria-label="' + escapeAttr(tab.label) + '"><thead><tr>';
       headers.forEach(function (h) {
         html += '<th style="background:' + tab.headerBg + ';color:' + tab.headerColor + ';">' + escapeHtml(h) + '</th>';
       });
@@ -451,7 +528,9 @@
         rows.forEach(function (row) {
           var cells = row.cells;
           var rowClasses = [row.done ? 'row-done' : '', row.sent ? 'row-sent' : ''].filter(Boolean).join(' ');
-          html += '<tr class="' + rowClasses + '" data-sheet-row="' + row.sheetRow + '">';
+          var noCode = !row.code;
+          html += '<tr class="' + rowClasses + '" data-sheet-row="' + row.sheetRow +
+                  '" data-code="' + escapeAttr(row.code || '') + '">';
           // Last cell is always "PDF Links" (rendered as the paper icon below);
           // the ID column is a click-to-copy cell; everything else is plain text.
           for (var c = 0; c < cells.length - 1; c++) {
@@ -462,9 +541,11 @@
             }
           }
           html += '<td class="pdf-cell">' + pdfIconCell(cells[cells.length - 1]) + '</td>';
-          html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox" ' + (row.done ? 'checked' : '') + ' /></td>';
+          html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox" aria-label="تحديد كمنجز" ' +
+                  (row.done ? 'checked ' : '') + (noCode ? 'disabled title="لا يمكن التتبع: لا يوجد Code" ' : '') + '/></td>';
           if (showSentColumn) {
-            html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox-sent" ' + (row.sent ? 'checked' : '') + ' /></td>';
+            html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox-sent" aria-label="تحديد أنجاز" ' +
+                    (row.sent ? 'checked ' : '') + (noCode ? 'disabled title="لا يمكن التتبع: لا يوجد Code" ' : '') + '/></td>';
           }
           html += '</tr>';
         });
@@ -508,13 +589,15 @@
     }
 
     // Updates the in-memory copy of TABS_DATA so the done/sent state survives
-    // tab switches and re-renders without needing a server round trip.
-    // field is 'done' or 'sent'.
-    function updateLocalTickState(sheetName, sheetRow, field, value) {
+    // tab switches and re-renders without needing a server round trip. Matches
+    // on the immutable Code and trusts the server's post-write {code, done, sent}
+    // so Finding 3's un-tick cascade renders without a refresh.
+    function updateLocalTickState(sheetName, code, updated) {
       var rows = TABS_DATA[sheetName] || [];
       for (var i = 0; i < rows.length; i++) {
-        if (String(rows[i].sheetRow) === String(sheetRow)) {
-          rows[i][field] = value;
+        if (String(rows[i].code) === String(code)) {
+          rows[i].done = updated.done;
+          rows[i].sent = updated.sent;
           break;
         }
       }
@@ -547,6 +630,7 @@
 
       var config = TICK_COLUMNS[checkbox.classList.contains('tick-checkbox-sent') ? 'tick-checkbox-sent' : 'tick-checkbox'];
       var tr = checkbox.closest('tr');
+      var code = tr.getAttribute('data-code');
       var sheetRow = tr.getAttribute('data-sheet-row');
       var sheetName = TABS_CONFIG[activeIndex].sheetName;
       var checked = checkbox.checked;
@@ -558,43 +642,204 @@
       checkbox.disabled = true;
 
       google.script.run
-        .withSuccessHandler(function () {
-          updateLocalTickState(sheetName, sheetRow, config.field, checked);
+        .withSuccessHandler(function (updated) {
+          updateLocalTickState(sheetName, code, updated);
           renderTable();
         })
         .withFailureHandler(function (err) {
           checkbox.disabled = false;
           checkbox.checked = !checked;
           tr.classList.toggle(config.rowClass, !checked);
-          alert('Could not save: ' + (err && err.message ? err.message : err));
-        })[config.serverFn](sheetName, Number(sheetRow), checked);
+          var msg = (err && err.message) ? err.message : String(err);
+          if (String(msg).indexOf('AUTH') !== -1) {
+            try { localStorage.removeItem('usd_token'); } catch (e) {}
+            showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+          } else if (String(msg).indexOf('NOT_YOUR_ROW') !== -1) {
+            showBanner('لا يمكنك تعديل صف سكرتارية أخرى.', 'error');
+          } else if (String(msg).indexOf('DONE_FIRST') !== -1) {
+            showBanner('حدد "منجز" أولاً قبل "أنجاز".', 'error');
+          } else if (/NOT_FOUND|AMBIGUOUS|NO_CODE/.test(String(msg))) {
+            showBanner('تعذّر تحديد الصف. اضغط تحديث ثم أعد المحاولة.', 'error');
+          } else {
+            showBanner('تعذّر الحفظ: ' + msg, 'error');
+          }
+        })[config.serverFn](SESSION.token, sheetName, code, Number(sheetRow), checked);
     });
 
     function refreshData() {
-      var btn = document.getElementById('refreshBtn');
-      if (btn.classList.contains('spinning')) return; // already refreshing
-      btn.classList.add('spinning');
-
-      google.script.run
-        .withSuccessHandler(function (data) {
-          TABS_DATA = data;
-          refreshSecretariatOptions();
-          renderTable();
-          btn.classList.remove('spinning');
-        })
-        .withFailureHandler(function (err) {
-          btn.classList.remove('spinning');
-          alert('Could not refresh data: ' + (err && err.message ? err.message : err));
-        })
-        .refreshTabsData();
+      if (!document.getElementById('refreshBtn').classList.contains('spinning')) loadData(false);
     }
 
     document.getElementById('refreshBtn').addEventListener('click', refreshData);
 
-    setupSecretariatFilter();
-    refreshSecretariatOptions();
-    renderNav();
-    renderTable();
+    var SESSION = { token: null, name: null, role: null };
+
+    function showBanner(message, kind) {
+      var b = document.getElementById('banner');
+      b.textContent = message;
+      b.className = 'banner ' + (kind === 'info' ? 'info' : 'error');
+      b.hidden = false;
+      clearTimeout(showBanner._t);
+      showBanner._t = setTimeout(clearBanner, 6000);
+    }
+    function clearBanner() { document.getElementById('banner').hidden = true; }
+    document.getElementById('banner').addEventListener('click', clearBanner);
+
+    function showLogin(msg) {
+      document.getElementById('app').hidden = true;
+      document.getElementById('loginView').hidden = false;
+      var el = document.getElementById('loginError');
+      if (msg) { el.textContent = msg; el.hidden = false; } else { el.hidden = true; }
+    }
+
+    function doEnterDashboard() {
+      document.getElementById('loginView').hidden = true;
+      document.getElementById('app').hidden = false;
+      enterDashboard(); // defined below; Task 11 fills the body
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var u = document.getElementById('loginUser').value;
+      var p = document.getElementById('loginPass').value;
+      var btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          if (res && res.ok) {
+            SESSION = { token: res.token, name: res.name, role: res.role };
+            try { localStorage.setItem('usd_token', res.token); } catch (err) {}
+            document.getElementById('loginPass').value = '';
+            doEnterDashboard();
+          } else if (res && res.error === 'locked') {
+            showLogin('تم قفل الحساب مؤقتاً لكثرة المحاولات. حاول بعد ١٥ دقيقة.');
+          } else {
+            showLogin('اسم المستخدم أو كلمة المرور غير صحيحة.');
+          }
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false;
+          showLogin('تعذّر تسجيل الدخول: ' + (err && err.message ? err.message : err));
+        })
+        .login(u, p);
+    });
+
+    function tryResume() {
+      var saved = null;
+      try { saved = localStorage.getItem('usd_token'); } catch (err) {}
+      if (!saved) { showLogin(); return; }
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.ok) {
+            SESSION = { token: saved, name: res.name, role: res.role };
+            doEnterDashboard();
+          } else {
+            try { localStorage.removeItem('usd_token'); } catch (err) {}
+            showLogin();
+          }
+        })
+        .withFailureHandler(function () { showLogin(); })
+        .resumeSession(saved);
+    }
+
+    function enterDashboard() {
+      document.getElementById('whoami').textContent = SESSION.name || '';
+      var filterBox = document.querySelector('.filter-box');
+      if (filterBox) filterBox.style.display = (SESSION.role === 'admin') ? '' : 'none';
+      var summary = document.getElementById('summaryPanel');
+      if (summary) summary.hidden = (SESSION.role !== 'admin');
+
+      setupSecretariatFilter();
+      loadData(true);
+    }
+
+    function setLastUpdated() {
+      var el = document.getElementById('lastUpdated');
+      if (!el) return;
+      var d = new Date();
+      var hh = ('0' + d.getHours()).slice(-2);
+      var mm = ('0' + d.getMinutes()).slice(-2);
+      el.textContent = 'آخر تحديث ' + hh + ':' + mm;
+    }
+
+    function loadData(initial) {
+      var btn = document.getElementById('refreshBtn');
+      btn.classList.add('spinning');
+      var runner = google.script.run
+        .withSuccessHandler(function (res) {
+          btn.classList.remove('spinning');
+          TABS_DATA = (res && res.tabsData) ? res.tabsData : (res || {});
+          refreshSecretariatOptions();
+          renderNav();
+          renderTable();
+          setLastUpdated();
+          if (SESSION.role === 'admin' && typeof loadSummary === 'function') loadSummary();
+        })
+        .withFailureHandler(function (err) {
+          btn.classList.remove('spinning');
+          var msg = (err && err.message) ? err.message : String(err);
+          if (String(msg).indexOf('AUTH') !== -1) {
+            try { localStorage.removeItem('usd_token'); } catch (e) {}
+            showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+          } else {
+            showBanner('تعذّر تحميل البيانات: ' + msg, 'error');
+          }
+        });
+      if (initial) runner.getBootstrapData(SESSION.token);
+      else runner.refreshTabsData(SESSION.token);
+    }
+
+    function loadSummary() {
+      var dateInput = document.getElementById('summaryDate');
+      var dateStr = dateInput.value || '';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (dateInput && res && res.date && !dateInput.value) dateInput.value = res.date;
+          renderSummary(res);
+        })
+        .withFailureHandler(function (err) {
+          showBanner('تعذّر تحميل الملخص: ' + (err && err.message ? err.message : err), 'error');
+        })
+        .getAdminSummary(SESSION.token, dateStr);
+    }
+
+    function renderSummary(res) {
+      var tbody = document.querySelector('#summaryTable tbody');
+      tbody.innerHTML = '';
+      var rows = (res && res.rows) || [];
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-row">لا يوجد نشاط لهذا اليوم</td></tr>';
+        return;
+      }
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escapeHtml(r.secretary) + '</td>' +
+          '<td>' + r.done + '</td>' +
+          '<td>' + r.sent + '</td>' +
+          '<td>' + r.untick + '</td>' +
+          '<td>' + (r.avgMinutes == null ? '—' : r.avgMinutes) + '</td>' +
+          '<td>' + r.oldestPendingHours + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('summaryDate').addEventListener('change', loadSummary);
+
+    tryResume();
+
+    document.getElementById('logoutBtn').addEventListener('click', function () {
+      var t = SESSION.token;
+      SESSION = { token: null, name: null, role: null };
+      try { localStorage.removeItem('usd_token'); } catch (err) {}
+      if (t) google.script.run.logout(t);
+      TABS_DATA = {};
+      document.getElementById('tableWrap').innerHTML = '';
+      var st = document.querySelector('#summaryTable tbody');
+      if (st) st.innerHTML = '';
+      showLogin();
+    });
   </script>
 </body>
 </html>

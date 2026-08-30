@@ -139,6 +139,18 @@
       padding: 2px 9px;
       border-radius: 10px;
     }
+    .count-badge-done { background: #e6f4ea; color: #1e8e3e; }   /* طباعة — green */
+    .count-badge-sent { background: #e8eaf6; color: #000080; }   /* أنجاز — navy */
+    .done-pager {
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      padding: 8px 14px; font-size: 12px; color: #444;
+      background: #fafafa; border-top: 1px solid var(--border);
+    }
+    .pager-btn {
+      border: 1px solid var(--border); background: #fff; color: #1a73e8;
+      border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+    }
+    .pager-btn:disabled { color: #bbb; cursor: default; }
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
@@ -360,6 +372,8 @@
     var TABS_DATA = {};
 
     var activeIndex = 0;
+    var donePage = 0;              // pagination position in the طباعة (Done) table
+    var DONE_DAYS_PER_PAGE = 2;    // how many calendar days of requests per page
     var secretariatFilterValue = '';
 
     // Indexes into each display row, matching COLUMN_HEADERS order:
@@ -374,6 +388,7 @@
       var select = document.getElementById('secretariatFilter');
       select.addEventListener('change', function () {
         secretariatFilterValue = select.value;
+        donePage = 0;
         renderTable();
       });
     }
@@ -421,6 +436,7 @@
         btn.style.color = tab.headerColor;
         btn.onclick = function () {
           activeIndex = i;
+          donePage = 0;
           renderNav();
           renderTable();
         };
@@ -558,10 +574,54 @@
       return html;
     }
 
-    function buildSectionMarkup(title, tab, rows, emptyMessage, showSentColumn) {
+    // opts (all optional): totalCount overrides the badge number (when `rows` is a
+    // paginated slice); sentCount adds a navy "أنجاز N" badge; footerHtml is
+    // appended after the table (the pager).
+    function buildSectionMarkup(title, tab, rows, emptyMessage, showSentColumn, opts) {
+      opts = opts || {};
+      var badgeNum = (opts.totalCount != null) ? opts.totalCount : rows.length;
+      var badges = '<span class="count-badge' + (opts.sentCount != null ? ' count-badge-done' : '') + '">' + badgeNum + '</span>';
+      if (opts.sentCount != null) {
+        badges += ' <span class="count-badge count-badge-sent">أنجاز ' + opts.sentCount + '</span>';
+      }
       return '<div class="table-section">' +
-        '<div class="table-section-title">' + escapeHtml(title) + ' <span class="count-badge">' + rows.length + '</span></div>' +
+        '<div class="table-section-title">' + escapeHtml(title) + ' ' + badges + '</div>' +
         '<div class="table-scroll">' + buildTableMarkup(tab, rows, emptyMessage, showSentColumn) + '</div>' +
+        (opts.footerHtml || '') +
+        '</div>';
+    }
+
+    // Splits done rows into pages of DONE_DAYS_PER_PAGE calendar days each
+    // (newest first). Returns { rows: <this page's rows>, pageCount, days: [...] }.
+    function paginateDoneByDay(doneRows) {
+      var order = [];
+      var seen = {};
+      doneRows.forEach(function (r) {
+        var day = String(r.cells[0] || '').slice(0, 10) || '—';
+        if (!seen[day]) { seen[day] = true; order.push(day); }
+      });
+      var pageCount = Math.max(1, Math.ceil(order.length / DONE_DAYS_PER_PAGE));
+      if (donePage >= pageCount) donePage = pageCount - 1;
+      if (donePage < 0) donePage = 0;
+      var pageDays = order.slice(donePage * DONE_DAYS_PER_PAGE, donePage * DONE_DAYS_PER_PAGE + DONE_DAYS_PER_PAGE);
+      var inPage = {};
+      pageDays.forEach(function (d) { inPage[d] = true; });
+      return {
+        rows: doneRows.filter(function (r) { return inPage[String(r.cells[0] || '').slice(0, 10) || '—']; }),
+        pageCount: pageCount,
+        days: pageDays
+      };
+    }
+
+    function donePagerHtml(page) {
+      if (page.pageCount <= 1) return '';
+      var range = page.days.length
+        ? (page.days[page.days.length - 1] + (page.days.length > 1 ? ' → ' + page.days[0] : ''))
+        : '';
+      return '<div class="done-pager">' +
+        '<button class="pager-btn" data-done-page="' + (donePage + 1) + '"' + (donePage >= page.pageCount - 1 ? ' disabled' : '') + '>أقدم</button>' +
+        '<span>' + escapeHtml(range) + ' &nbsp;(' + (donePage + 1) + ' / ' + page.pageCount + ')</span>' +
+        '<button class="pager-btn" data-done-page="' + (donePage - 1) + '"' + (donePage <= 0 ? ' disabled' : '') + '>أحدث</button>' +
         '</div>';
     }
 
@@ -585,10 +645,17 @@
       var pendingEmpty = secretariatFilterValue ? 'No matching pending records' : 'No pending records';
       var doneEmpty = secretariatFilterValue ? 'No matching completed records' : 'No completed records yet';
 
+      var donePageInfo = paginateDoneByDay(doneRows);
+      var doneSentCount = doneRows.filter(function (r) { return r.sent; }).length;
+
       var wrap = document.getElementById('tableWrap');
       wrap.innerHTML =
         buildSectionMarkup('Pending', tab, pendingRows, pendingEmpty, false) +
-        buildSectionMarkup('Done', tab, doneRows, doneEmpty, true);
+        buildSectionMarkup('طباعة', tab, donePageInfo.rows, doneEmpty, true, {
+          totalCount: doneRows.length,
+          sentCount: doneSentCount,
+          footerHtml: donePagerHtml(donePageInfo)
+        });
     }
 
     // Updates the in-memory copy of TABS_DATA so the done/sent state survives
@@ -607,6 +674,14 @@
     }
 
     document.getElementById('tableWrap').addEventListener('click', function (e) {
+      var pagerBtn = e.target.closest('.pager-btn');
+      if (pagerBtn) {
+        if (!pagerBtn.disabled) {
+          donePage = Number(pagerBtn.getAttribute('data-done-page'));
+          renderTable();
+        }
+        return;
+      }
       var link = e.target.closest('.pdf-link');
       if (link) {
         e.preventDefault();
@@ -773,6 +848,7 @@
         .withSuccessHandler(function (res) {
           btn.classList.remove('spinning');
           TABS_DATA = (res && res.tabsData) ? res.tabsData : (res || {});
+          donePage = 0;
           refreshSecretariatOptions();
           renderNav();
           renderTable();

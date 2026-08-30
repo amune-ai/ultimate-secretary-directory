@@ -361,12 +361,12 @@
     <div id="summaryPanel" class="summary-panel" hidden>
       <div class="summary-head">
         <span class="summary-head-left">
-          <button id="summaryToggle" class="summary-toggle" type="button" aria-label="طي أو عرض الجدول">&minus;</button>
+          <button id="summaryToggle" class="summary-toggle" type="button" aria-label="طي أو عرض الجدول">+</button>
           <strong>ملخص اليوم لكل سكرتارية</strong>
         </span>
         <input type="date" id="summaryDate">
       </div>
-      <div id="summaryBody" class="table-scroll">
+      <div id="summaryBody" class="table-scroll" hidden>
         <table class="data-table" id="summaryTable" aria-label="ملخص الأداء">
           <thead><tr>
             <th>السكرتارية</th><th>طباعة</th><th>أنجاز</th><th>تراجع</th>
@@ -923,9 +923,10 @@
     document.getElementById('summaryDate').addEventListener('change', loadSummary);
 
     // Collapse / expand the summary table; remembered per browser.
+    // Default is collapsed — only an explicit '0' keeps it open.
     function applySummaryCollapsed() {
-      var collapsed = false;
-      try { collapsed = localStorage.getItem('usd_summary_collapsed') === '1'; } catch (e) {}
+      var collapsed = true;
+      try { collapsed = localStorage.getItem('usd_summary_collapsed') !== '0'; } catch (e) {}
       var body = document.getElementById('summaryBody');
       var btn = document.getElementById('summaryToggle');
       if (body) body.hidden = collapsed;

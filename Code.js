@@ -64,7 +64,7 @@ var TABS_CONFIG = [
 ];
 
 // Display order in the web app. "Done" and "أنجاز" are the tick/checkbox columns.
-var COLUMN_HEADERS = ['Timestamp', 'Name', 'ID', 'Center', 'Summary Dropdown', 'سكرتارية', 'Code', 'PDF Links', 'Done', 'أنجاز'];
+var COLUMN_HEADERS = ['Timestamp', 'Name', 'ID', 'Center', 'Summary Dropdown', 'سكرتارية', 'Code', 'PDF Links', 'طباعة', 'أنجاز'];
 
 // Where each field actually lives in the sheet (0-based index within
 // the A:K range read below). Column B is currently unused.

@@ -751,7 +751,7 @@
           } else if (String(msg).indexOf('NOT_YOUR_ROW') !== -1) {
             showBanner('لا يمكنك تعديل صف سكرتارية أخرى.', 'error');
           } else if (String(msg).indexOf('DONE_FIRST') !== -1) {
-            showBanner('حدد "منجز" أولاً قبل "أنجاز".', 'error');
+            showBanner('حدد "طباعة" أولاً قبل "أنجاز".', 'error');
           } else if (/NOT_FOUND|AMBIGUOUS|NO_CODE/.test(String(msg))) {
             showBanner('تعذّر تحديد الصف. اضغط تحديث ثم أعد المحاولة.', 'error');
           } else {

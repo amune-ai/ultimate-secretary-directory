@@ -23,7 +23,10 @@ function checkCredentials_(loginRows, username, password) {
     var row = loginRows[i];
     if (normalizeUsername_(row.username) === u && String(row.password) === p) {
       var name = String(row.name == null ? '' : row.name).trim();
-      var role = (u === normalizeUsername_(ADMIN_USERNAME)) ? 'admin' : 'secretary';
+      // Admin if the Login tab's Role column says so, OR it's the hardwired
+      // safety-net admin (so the owner can never be locked out).
+      var roleCell = String(row.role == null ? '' : row.role).trim().toLowerCase();
+      var role = (roleCell === 'admin' || u === normalizeUsername_(ADMIN_USERNAME)) ? 'admin' : 'secretary';
       if (role !== 'admin' && name === '') return null; // no name => no scope => no login
       return { username: u, name: name, role: role };
     }
@@ -45,8 +48,10 @@ function readLoginRows_() {
   if (!sheet) throw new Error('Login sheet missing');
   var last = sheet.getLastRow();
   if (last < 2) return [];
-  var vals = sheet.getRange(2, 1, last - 1, 3).getValues(); // Username, Password, Name
-  return vals.map(function (r) { return { username: r[0], password: r[1], name: r[2] }; });
+  // Username | Password | Name | Role  (Role optional — missing column is fine)
+  var width = Math.min(4, sheet.getMaxColumns());
+  var vals = sheet.getRange(2, 1, last - 1, width).getValues();
+  return vals.map(function (r) { return { username: r[0], password: r[1], name: r[2], role: r[3] }; });
 }
 
 function sessionKey_(token) { return SESSION_PREFIX + token; }

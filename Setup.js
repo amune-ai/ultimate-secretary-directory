@@ -40,11 +40,15 @@ function runTests() {
 
   // checkCredentials_ against fake rows
   var rows = [
-    { username: 'a1', password: 'a11', name: 'Admin Name' },
-    { username: 'h1', password: 'h11', name: 'Test Secretary' }
+    { username: 'a1', password: 'a11', name: 'Admin Name' },                       // admin via safety-net
+    { username: 'h1', password: 'h11', name: 'Test Secretary' },                   // secretary (no Role)
+    { username: 'b1', password: 'b11', name: 'Boss Two', role: 'Admin' },          // admin via Role column
+    { username: 'c1', password: 'c11', name: 'Sec Three', role: 'secretary' }      // explicit secretary
   ];
-  eq(checkCredentials_(rows, 'A1', 'a11').role, 'admin', 'admin role');
-  eq(checkCredentials_(rows, 'h1', 'h11').role, 'secretary', 'secretary role');
+  eq(checkCredentials_(rows, 'A1', 'a11').role, 'admin', 'admin via safety-net');
+  eq(checkCredentials_(rows, 'h1', 'h11').role, 'secretary', 'secretary (no Role cell)');
+  eq(checkCredentials_(rows, 'b1', 'b11').role, 'admin', 'admin via Role column');
+  eq(checkCredentials_(rows, 'c1', 'c11').role, 'secretary', 'explicit secretary Role');
   eq(checkCredentials_(rows, 'h1', 'wrong'), null, 'wrong password rejected');
   eq(checkCredentials_(rows, 'ghost', 'x'), null, 'unknown user rejected');
   eq(checkCredentials_([{ username: 's', password: 'p', name: '  ' }], 's', 'p'), null, 'blank-name secretary rejected');

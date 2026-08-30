@@ -32,8 +32,8 @@
 var SPREADSHEET_ID = '1siA7v8Ib3tWyI-GNUHr-baUK2o61qQtZVWxsHcZBShA';
 
 // --- Login + session config (added incrementally, slice 2) ---
-var ADMIN_USERNAME = 'a1';       // this username gets the admin view; everyone else is a secretary
-var LOGIN_SHEET = 'Login';       // tab layout: Username | Password | Name
+var ADMIN_USERNAME = 'a1';       // hardwired safety-net admin; other admins are set via the Login tab's Role column
+var LOGIN_SHEET = 'Login';       // tab layout: Username | Password | Name | Role   (Role: "admin" or blank)
 var ACTIVITY_SHEET = 'ActivityLog'; // append-only audit: timestamp|sheet|code|username|name|action|old|new
 
 var SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8h, slid forward on each authenticated call

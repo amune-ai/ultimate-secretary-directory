@@ -1,0 +1,106 @@
+/**
+ * Admin summary: per-secretary Done/Sent/un-tick counts for a given day,
+ * average Done->Sent minutes for that day, and the oldest still-pending
+ * request age. Pure aggregation + a thin getAdminSummary wrapper.
+ */
+
+function dateInTz_(dateObj, tz) {
+  if (typeof Utilities !== 'undefined' && Utilities && Utilities.formatDate) {
+    return Utilities.formatDate(dateObj, tz, 'yyyy-MM-dd');
+  }
+  return dateObj.toISOString().slice(0, 10); // Node tests use UTC dates
+}
+
+function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
+  var perSec = {};
+  function bucket(name) {
+    if (!perSec[name]) {
+      perSec[name] = { secretary: name, done: 0, sent: 0, untick: 0, _lat: [], oldestPendingHours: 0 };
+    }
+    return perSec[name];
+  }
+  function asDate(v) {
+    if (v instanceof Date) return v;
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  (logRows || []).forEach(function (r) {
+    var when = asDate(r[0]);
+    if (!when || dateInTz_(when, tz) !== dateStr) return;
+    var sec = String(r[4] == null ? '' : r[4]).trim();
+    if (!sec) return;
+    var action = String(r[5] || '');
+    var newVal = String(r[7] == null ? '' : r[7]);
+    var b = bucket(sec);
+    if (newVal === '') { b.untick++; return; }
+    if (action === 'done') b.done++;
+    else if (action === 'sent') b.sent++;
+  });
+
+  Object.keys(dataRowsBySheet || {}).forEach(function (sheetName) {
+    dataRowsBySheet[sheetName].forEach(function (row) {
+      var s = asDate(row[COL.SENT_AT]);
+      var d = asDate(row[COL.DONE_AT]);
+      if (s && d && dateInTz_(s, tz) === dateStr) {
+        var sec = String(row[COL.SECRETARIAT] == null ? '' : row[COL.SECRETARIAT]).trim();
+        if (sec) bucket(sec)._lat.push((s.getTime() - d.getTime()) / 60000);
+      }
+    });
+  });
+
+  var now = Date.now();
+  Object.keys(dataRowsBySheet || {}).forEach(function (sheetName) {
+    dataRowsBySheet[sheetName].forEach(function (row) {
+      if (isDone_(row[COL.DONE])) return;
+      var sec = String(row[COL.SECRETARIAT] == null ? '' : row[COL.SECRETARIAT]).trim();
+      if (!sec) return;
+      var t = asDate(row[COL.TIMESTAMP]);
+      if (!t) return;
+      var hrs = (now - t.getTime()) / 3600000;
+      var b = bucket(sec);
+      if (hrs > b.oldestPendingHours) b.oldestPendingHours = hrs;
+    });
+  });
+
+  return Object.keys(perSec).sort().map(function (k) {
+    var b = perSec[k];
+    var avg = b._lat.length
+      ? Math.round(b._lat.reduce(function (x, y) { return x + y; }, 0) / b._lat.length)
+      : null;
+    return {
+      secretary: b.secretary, done: b.done, sent: b.sent, untick: b.untick,
+      avgMinutes: avg, oldestPendingHours: Math.round(b.oldestPendingHours * 10) / 10
+    };
+  });
+}
+
+// Called via google.script.run by the admin view. dateStr 'yyyy-MM-dd' or ''.
+function getAdminSummary(token, dateStr) {
+  var session = requireSession_(token);
+  if (session.role !== 'admin') throw new Error('AUTH');
+
+  var tz = Session.getScriptTimeZone();
+  if (!dateStr) dateStr = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+  var ss = getSpreadsheet_();
+
+  var logSheet = ss.getSheetByName(ACTIVITY_SHEET);
+  var logRows = (logSheet && logSheet.getLastRow() > 1)
+    ? logSheet.getRange(2, 1, logSheet.getLastRow() - 1, 8).getValues()
+    : [];
+
+  var dataRowsBySheet = {};
+  TABS_CONFIG.forEach(function (tab) {
+    var sheet = ss.getSheetByName(tab.sheetName);
+    dataRowsBySheet[tab.sheetName] = (sheet && sheet.getLastRow() > 1)
+      ? sheet.getRange(2, 1, sheet.getLastRow() - 1, SHEET_COLUMN_COUNT).getValues()
+      : [];
+  });
+
+  return { date: dateStr, rows: aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { dateInTz_: dateInTz_, aggregateSummary_: aggregateSummary_ };
+}

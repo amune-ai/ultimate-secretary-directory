@@ -126,3 +126,25 @@ function tryTick() {
   Logger.log('clear Done -> ' + JSON.stringify(writeTick_(lg.token, SHEET, CODE, 0, 'done', false)));
   logout(lg.token);
 }
+
+/**
+ * Admin-only. Logs in as the admin and prints getAdminSummary for a day:
+ * per-secretary Done/Sent/un-tick counts, average Done->Sent minutes, and
+ * the oldest still-pending request age. DATE '' means today.
+ */
+function trySummary() {
+  var USERNAME = 'a1';
+  var PASSWORD = 'PUT_ADMIN_PASSWORD_HERE';
+  var DATE = ''; // '' = today, or 'yyyy-MM-dd'
+  var lg = login(USERNAME, PASSWORD);
+  if (!lg.ok) { Logger.log('login failed: ' + JSON.stringify(lg)); return; }
+  var res = getAdminSummary(lg.token, DATE);
+  Logger.log('summary for ' + res.date + ':');
+  res.rows.forEach(function (r) {
+    Logger.log(
+      r.secretary + '  done=' + r.done + '  sent=' + r.sent + '  untick=' + r.untick +
+      '  avgMin=' + r.avgMinutes + '  oldestPendingH=' + r.oldestPendingHours
+    );
+  });
+  logout(lg.token);
+}

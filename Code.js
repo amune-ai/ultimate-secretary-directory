@@ -32,8 +32,9 @@
 var SPREADSHEET_ID = '1siA7v8Ib3tWyI-GNUHr-baUK2o61qQtZVWxsHcZBShA';
 
 // --- Login + session config (added incrementally, slice 2) ---
-var ADMIN_USERNAME = 'a1';   // this username gets the admin view; everyone else is a secretary
-var LOGIN_SHEET = 'Login';   // tab layout: Username | Password | Name
+var ADMIN_USERNAME = 'a1';       // this username gets the admin view; everyone else is a secretary
+var LOGIN_SHEET = 'Login';       // tab layout: Username | Password | Name
+var ACTIVITY_SHEET = 'ActivityLog'; // append-only audit: timestamp|sheet|code|username|name|action|old|new
 
 var SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8h, slid forward on each authenticated call
 var SESSION_PREFIX = 'sess_';            // Script Property key prefix for sessions
@@ -83,7 +84,7 @@ var COL = {
   SENT_AT: 13,  // N
   SENT_BY: 14   // O
 };
-var SHEET_COLUMN_COUNT = 11; // A:K  (bumped to 15 in a later slice, when reads need L:O)
+var SHEET_COLUMN_COUNT = 15; // A:O  (includes the L:O accountability columns)
 
 function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Index');
@@ -148,51 +149,62 @@ function setRowSent(sheetName, sheetRow, sent) {
   return true;
 }
 
+// Unscoped read of all tabs — used by the current (pre-login) doGet embed and
+// the no-arg refreshTabsData. Superseded by getBootstrapData once the client
+// sends a token (slice 5).
 function getAllTabsData_() {
-  var ss = getSpreadsheet_();
-  var result = {};
-  TABS_CONFIG.forEach(function (tab) {
-    result[tab.sheetName] = getSheetRows_(ss, tab.sheetName);
-  });
-  return result;
+  return readAllTabs_(null);
 }
 
-function getSheetRows_(ss, sheetName) {
+// scope = a secretary name to filter to, or null/'' for everything (admin).
+function readAllTabs_(scope) {
+  var ss = getSpreadsheet_();
+  var out = {};
+  TABS_CONFIG.forEach(function (tab) {
+    out[tab.sheetName] = getSheetRows_(ss, tab.sheetName, scope);
+  });
+  return out;
+}
+
+// requireSession_ + per-role scoping. The client calls this after login (slice 5).
+function getBootstrapData(token) {
+  var session = requireSession_(token);
+  return {
+    tabsData: readAllTabs_(session.role === 'admin' ? null : session.name),
+    name: session.name,
+    role: session.role
+  };
+}
+
+function getSheetRows_(ss, sheetName, scope) {
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];
-
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return []; // no data below header row
+  var values = sheet.getRange(2, 1, lastRow - 1, SHEET_COLUMN_COUNT).getValues();
+  return shapeSheetValues_(values, scope);
+}
 
-  // Always read a fixed A:I so columns line up correctly even if the
-  // sheet's last-used column is narrower on a given day (e.g. no rows
-  // have "سكرتارية" filled in yet).
-  var range = sheet.getRange(2, 1, lastRow - 1, SHEET_COLUMN_COUNT);
-  var values = range.getValues();
-
-  // Attach each row's real sheet row number *before* filtering/sorting,
-  // since those steps change array order/length and we need this later
-  // to write "Done" back into the correct row.
-  var indexed = values.map(function (row, i) {
-    return { row: row, sheetRow: i + 2 };
-  });
-
-  return indexed
+// Pure: raw A2:O values -> display rows, newest first. scope filters by the
+// سكرتارية column (trimmed, both sides); falsy scope = no filter.
+function shapeSheetValues_(values, scope) {
+  var wantScope = scope ? String(scope).trim() : '';
+  return values
+    .map(function (row, i) { return { row: row, sheetRow: i + 2 }; })
     .filter(function (item) {
       return item.row.some(function (cell) { return cell !== '' && cell !== null; });
     })
+    .filter(function (item) {
+      return !wantScope || String(item.row[COL.SECRETARIAT]).trim() === wantScope;
+    })
     .sort(function (a, b) {
-      // Newest first. Sort on the raw timestamp value (before it gets
-      // turned into a display string) so it sorts correctly even if
-      // the column holds real Date objects or timestamp text.
       return timestampValue_(b.row[COL.TIMESTAMP]) - timestampValue_(a.row[COL.TIMESTAMP]);
     })
     .map(function (item) {
       var row = item.row;
-      // Reorder from physical sheet layout (A:J) into display order:
-      // Timestamp, Name, ID, Center, Summary Dropdown, سكرتارية, Code, PDF Links
       return {
         sheetRow: item.sheetRow,
+        code: String(row[COL.CODE] || ''),
         done: isDone_(row[COL.DONE]),
         sent: isSent_(row[COL.SENT]),
         cells: [

@@ -90,3 +90,39 @@ function tryLogin() {
   var res = login(USERNAME, PASSWORD);
   Logger.log(JSON.stringify(res));
 }
+
+/**
+ * Logs in with the credentials below, then calls getBootstrapData with that
+ * token — the exact server path that runs right after login in the browser.
+ * Logs the role, name, and how many rows each tab returns (scoped for a
+ * secretary, everything for the admin).
+ */
+function tryBootstrap() {
+  var USERNAME = 'PUT_USERNAME_HERE';
+  var PASSWORD = 'PUT_PASSWORD_HERE';
+  var lg = login(USERNAME, PASSWORD);
+  if (!lg.ok) { Logger.log('login failed: ' + JSON.stringify(lg)); return; }
+  var data = getBootstrapData(lg.token);
+  Logger.log('role=' + data.role + '  name="' + data.name + '"');
+  Object.keys(data.tabsData).forEach(function (k) {
+    Logger.log(k + ': ' + data.tabsData[k].length + ' row(s)');
+  });
+  logout(lg.token);
+}
+
+/**
+ * Logs in, then sets Done on one row (by its Code / column E value) and
+ * clears it again — exercising writeTick_ + the ActivityLog append. Fill in
+ * a real CODE from column E of a row in the chosen SHEET.
+ */
+function tryTick() {
+  var USERNAME = 'PUT_USERNAME_HERE';
+  var PASSWORD = 'PUT_PASSWORD_HERE';
+  var SHEET = 'UploadedData';
+  var CODE = 'PUT_A_REAL_CODE_FROM_COLUMN_E';
+  var lg = login(USERNAME, PASSWORD);
+  if (!lg.ok) { Logger.log('login failed: ' + JSON.stringify(lg)); return; }
+  Logger.log('set Done  -> ' + JSON.stringify(writeTick_(lg.token, SHEET, CODE, 0, 'done', true)));
+  Logger.log('clear Done -> ' + JSON.stringify(writeTick_(lg.token, SHEET, CODE, 0, 'done', false)));
+  logout(lg.token);
+}

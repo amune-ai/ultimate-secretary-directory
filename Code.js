@@ -221,3 +221,52 @@ function formatTimestamp_(value) {
   }
   return value || '';
 }
+
+
+/**
+ * Standalone data sync — unrelated to the dashboard. Pulls A1:S from the
+ * "DocName" tab of the external "أسماء الاطباء" spreadsheet into this
+ * sheet's own "DocName" tab. Driven by a time-based trigger.
+ */
+function syncDataFast() {
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. CONFIGURATION: List your sources and destinations here
+  const syncJobs = [
+    {
+      sourceId: "1OWT7kh-yUzO_gn9qLmTjdOYZ9DKUDf3-HiyFwSFpTFE", // أسماء الاطباء
+      sourceTab: "DocName",
+      sourceRange: "A1:S",
+      destTab: "DocName",
+      destRow: 1,
+      destCol: 1
+    }
+  ];
+
+  // 2. EXECUTION: Loop through each job defined above
+  syncJobs.forEach(function(job) {
+    try {
+      // Connect to Source
+      const sourceSS = SpreadsheetApp.openById(job.sourceId);
+      const sourceSheet = sourceSS.getSheetByName(job.sourceTab);
+      const data = sourceSheet.getRange(job.sourceRange).getValues();
+
+      // Connect to Destination
+      const destSheet = destSS.getSheetByName(job.destTab);
+
+      // Clear ONLY the area where data is about to be pasted
+      // This prevents old data from staying behind if the new pull is smaller
+      destSheet.getRange(job.destRow, job.destCol, destSheet.getLastRow() || 1, data[0].length).clearContent();
+
+      // Paste the fresh data
+      destSheet.getRange(job.destRow, job.destCol, data.length, data[0].length).setValues(data);
+
+      console.log(`Success: ${job.sourceTab} synced to ${job.destTab}`);
+
+    } catch (e) {
+      console.log(`Error syncing ${job.sourceTab}: ${e.message}`);
+    }
+  });
+
+  console.log("Global Sync Finished: " + new Date());
+}

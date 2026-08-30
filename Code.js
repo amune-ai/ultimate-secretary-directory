@@ -67,9 +67,13 @@ var COL = {
   CENTER: 7,    // H
   SECRETARIAT: 8, // I
   DONE: 9,      // J
-  SENT: 10      // K
+  SENT: 10,     // K
+  DONE_AT: 11,  // L  (accountability columns, added incrementally)
+  DONE_BY: 12,  // M
+  SENT_AT: 13,  // N
+  SENT_BY: 14   // O
 };
-var SHEET_COLUMN_COUNT = 11; // A:K
+var SHEET_COLUMN_COUNT = 11; // A:K  (bumped to 15 in a later slice, when reads need L:O)
 
 function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Index');

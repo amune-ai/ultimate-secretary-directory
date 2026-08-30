@@ -311,6 +311,12 @@
     .summary-head input[type="date"] {
       padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
     }
+    .summary-head-left { display: flex; align-items: center; gap: 8px; }
+    .summary-toggle {
+      width: 24px; height: 24px; padding: 0; line-height: 1;
+      border: 1px solid var(--border); border-radius: 6px; background: #fff;
+      color: #444; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
     #summaryTable th { background: #37474f; color: #fff; }
   </style>
 </head>
@@ -354,10 +360,13 @@
     <div id="tabNav" class="tab-nav"></div>
     <div id="summaryPanel" class="summary-panel" hidden>
       <div class="summary-head">
-        <strong>ملخص اليوم لكل سكرتارية</strong>
+        <span class="summary-head-left">
+          <button id="summaryToggle" class="summary-toggle" type="button" aria-label="طي أو عرض الجدول">&minus;</button>
+          <strong>ملخص اليوم لكل سكرتارية</strong>
+        </span>
         <input type="date" id="summaryDate">
       </div>
-      <div class="table-scroll">
+      <div id="summaryBody" class="table-scroll">
         <table class="data-table" id="summaryTable" aria-label="ملخص الأداء">
           <thead><tr>
             <th>السكرتارية</th><th>طباعة</th><th>أنجاز</th><th>تراجع</th>
@@ -834,6 +843,7 @@
       if (filterBox) filterBox.style.display = (SESSION.role === 'admin') ? '' : 'none';
       var summary = document.getElementById('summaryPanel');
       if (summary) summary.hidden = (SESSION.role !== 'admin');
+      applySummaryCollapsed();
 
       setupSecretariatFilter();
       loadData(true);
@@ -911,6 +921,23 @@
     }
 
     document.getElementById('summaryDate').addEventListener('change', loadSummary);
+
+    // Collapse / expand the summary table; remembered per browser.
+    function applySummaryCollapsed() {
+      var collapsed = false;
+      try { collapsed = localStorage.getItem('usd_summary_collapsed') === '1'; } catch (e) {}
+      var body = document.getElementById('summaryBody');
+      var btn = document.getElementById('summaryToggle');
+      if (body) body.hidden = collapsed;
+      if (btn) btn.textContent = collapsed ? '+' : '−';
+    }
+    document.getElementById('summaryToggle').addEventListener('click', function () {
+      var body = document.getElementById('summaryBody');
+      var collapsed = !body.hidden;
+      body.hidden = collapsed;
+      this.textContent = collapsed ? '+' : '−';
+      try { localStorage.setItem('usd_summary_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+    });
 
     tryResume();
 

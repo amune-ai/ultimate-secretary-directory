@@ -146,11 +146,15 @@
       padding: 8px 14px; font-size: 12px; color: #444;
       background: #fafafa; border-top: 1px solid var(--border);
     }
+    .done-pager { flex-wrap: wrap; }
     .pager-btn {
       border: 1px solid var(--border); background: #fff; color: #1a73e8;
       border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+      min-width: 32px;
     }
-    .pager-btn:disabled { color: #bbb; cursor: default; }
+    .pager-btn.active {
+      background: #1a73e8; color: #fff; border-color: #1a73e8; cursor: default;
+    }
     .table-scroll {
       overflow-x: auto;
       overflow-y: auto;
@@ -580,12 +584,16 @@
     function buildSectionMarkup(title, tab, rows, emptyMessage, showSentColumn, opts) {
       opts = opts || {};
       var badgeNum = (opts.totalCount != null) ? opts.totalCount : rows.length;
-      var badges = '<span class="count-badge' + (opts.sentCount != null ? ' count-badge-done' : '') + '">' + badgeNum + '</span>';
+      var badges;
       if (opts.sentCount != null) {
-        badges += ' <span class="count-badge count-badge-sent">أنجاز ' + opts.sentCount + '</span>';
+        // done section: two parallel labelled badges — طباعة (green), أنجاز (navy)
+        badges = '<span class="count-badge count-badge-done">طباعة ' + badgeNum + '</span>' +
+                 ' <span class="count-badge count-badge-sent">أنجاز ' + opts.sentCount + '</span>';
+      } else {
+        badges = '<span class="count-badge">' + badgeNum + '</span>';
       }
       return '<div class="table-section">' +
-        '<div class="table-section-title">' + escapeHtml(title) + ' ' + badges + '</div>' +
+        '<div class="table-section-title">' + (title ? escapeHtml(title) + ' ' : '') + badges + '</div>' +
         '<div class="table-scroll">' + buildTableMarkup(tab, rows, emptyMessage, showSentColumn) + '</div>' +
         (opts.footerHtml || '') +
         '</div>';
@@ -615,14 +623,13 @@
 
     function donePagerHtml(page) {
       if (page.pageCount <= 1) return '';
-      var range = page.days.length
-        ? (page.days[page.days.length - 1] + (page.days.length > 1 ? ' → ' + page.days[0] : ''))
-        : '';
-      return '<div class="done-pager">' +
-        '<button class="pager-btn" data-done-page="' + (donePage + 1) + '"' + (donePage >= page.pageCount - 1 ? ' disabled' : '') + '>أقدم</button>' +
-        '<span>' + escapeHtml(range) + ' &nbsp;(' + (donePage + 1) + ' / ' + page.pageCount + ')</span>' +
-        '<button class="pager-btn" data-done-page="' + (donePage - 1) + '"' + (donePage <= 0 ? ' disabled' : '') + '>أحدث</button>' +
-        '</div>';
+      var out = '<div class="done-pager">';
+      for (var i = 0; i < page.pageCount; i++) {
+        out += '<button class="pager-btn' + (i === donePage ? ' active' : '') +
+               '" data-done-page="' + i + '"' + (i === donePage ? ' disabled' : '') +
+               '>' + (i + 1) + '</button>';
+      }
+      return out + '</div>';
     }
 
     // Each tab shows two tables: pending (Done not ticked) and completed
@@ -651,7 +658,7 @@
       var wrap = document.getElementById('tableWrap');
       wrap.innerHTML =
         buildSectionMarkup('Pending', tab, pendingRows, pendingEmpty, false) +
-        buildSectionMarkup('طباعة', tab, donePageInfo.rows, doneEmpty, true, {
+        buildSectionMarkup('', tab, donePageInfo.rows, doneEmpty, true, {
           totalCount: doneRows.length,
           sentCount: doneSentCount,
           footerHtml: donePagerHtml(donePageInfo)

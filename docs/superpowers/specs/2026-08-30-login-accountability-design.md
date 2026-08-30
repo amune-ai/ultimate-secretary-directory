@@ -116,6 +116,8 @@ across all three tabs.
   tick any row.
 - Order enforcement (server-side): `setRowSent(..., true)` throws if the target
   row is not currently `Done`.
+- The سكرتارية filter dropdown is **hidden for secretaries** (their data is
+  already scoped to one name) and shown only for the admin.
 
 ## 4. Tick write flow
 
@@ -152,6 +154,8 @@ across all three tabs.
   them from the Apps Script project.
 - Replace both `alert()` calls with an inline dismissible `#banner` element.
 - Add `aria-label` to Done/Sent checkboxes and an `aria-label` on each table.
+- Hide the سكرتارية filter for secretaries; keep it for the admin.
+- Show "logged in as <name>" and a logout button in the toolbar.
 - Show "Last updated HH:MM" next to the refresh button, set on every data load.
 
 ## 7. Testing

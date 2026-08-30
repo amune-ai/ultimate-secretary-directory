@@ -1,0 +1,8 @@
+# Local-only; never pushed to Apps Script
+docs/**
+tests/**
+**/*.md
+.claspignore
+.gitignore
+.git/**
+node_modules/**

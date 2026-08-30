@@ -75,7 +75,9 @@ function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Index');
   template.tabsConfigJson = JSON.stringify(TABS_CONFIG);
   template.columnHeadersJson = JSON.stringify(COLUMN_HEADERS);
-  template.tabsDataJson = JSON.stringify(getAllTabsData_());
+  // Escape "<" so a cell containing "</script>" can't break out of the
+  // inline <script> block in Index.html. "<" still parses as "<".
+  template.tabsDataJson = JSON.stringify(getAllTabsData_()).replace(/</g, '\\u003c');
   return template.evaluate()
     .setTitle('Uploads Dashboard')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -100,11 +102,20 @@ function refreshTabsData() {
   return getAllTabsData_();
 }
 
+// The web app is deployed with anonymous access, so anyone can call the
+// functions below. Reject any sheetName that isn't one of our configured
+// tabs before writing anything.
+function assertKnownSheet_(sheetName) {
+  var known = TABS_CONFIG.some(function (t) { return t.sheetName === sheetName; });
+  if (!known) throw new Error('Unknown sheet: ' + sheetName);
+}
+
 // Public entry point the client calls when the tick checkbox is toggled.
 // Writes "Done" (or clears it) into column J of that exact row.
 // sheetRow is the real 1-based row number in the sheet, returned to the
 // client as part of each row's data so it round-trips back here.
 function setRowDone(sheetName, sheetRow, done) {
+  assertKnownSheet_(sheetName);
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error('Sheet not found: ' + sheetName);
@@ -115,6 +126,7 @@ function setRowDone(sheetName, sheetRow, done) {
 // Same idea as setRowDone(), for the "أنجاز" tick column. Writes "Sent"
 // (or clears it) into column K of that exact row.
 function setRowSent(sheetName, sheetRow, sent) {
+  assertKnownSheet_(sheetName);
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error('Sheet not found: ' + sheetName);

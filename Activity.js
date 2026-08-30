@@ -99,3 +99,33 @@ function setRowDone(token, sheetName, code, rowHint, done) {
 function setRowSent(token, sheetName, code, rowHint, sent) {
   return writeTick_(token, sheetName, code, rowHint, 'sent', !!sent);
 }
+
+// تعديل — a 3-state marker on col P ("Wrong") / col Q ("Fixed").
+//   state 'wrong': P = "Wrong", Q = ""
+//   state 'fixed': P = "Wrong" (kept), Q = "Fixed"
+//   state 'none' : P = "", Q = ""
+// Returns { code, modify }.
+function setRowModify(token, sheetName, code, rowHint, state) {
+  if (state !== 'none' && state !== 'wrong' && state !== 'fixed') throw new Error('BAD_STATE');
+  var session = requireSession_(token);
+  assertKnownSheet_(sheetName);
+
+  var sheet = getSpreadsheet_().getSheetByName(sheetName);
+  if (!sheet) throw new Error('Sheet not found: ' + sheetName);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error('NOT_FOUND');
+
+  var values = sheet.getRange(2, 1, lastRow - 1, SHEET_COLUMN_COUNT).getValues();
+  var loc = findRowByCode_(values, code, rowHint);
+  var row = values[loc.index0];
+
+  tickGuard_(session, row, 'modify', true); // ownership check only
+
+  var prev = modifyState_(row[COL.MODIFY_WRONG], row[COL.MODIFY_FIXED]);
+  sheet.getRange(loc.sheetRow, COL.MODIFY_WRONG + 1).setValue(state === 'none' ? '' : 'Wrong');
+  sheet.getRange(loc.sheetRow, COL.MODIFY_FIXED + 1).setValue(state === 'fixed' ? 'Fixed' : '');
+
+  appendActivity_(sheetName, String(code).trim(), session, 'modify', prev, state);
+
+  return { code: String(code).trim(), modify: state };
+}

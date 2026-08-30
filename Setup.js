@@ -1,23 +1,29 @@
 /**
- * One-time / idempotent setup. Adds the four tracking-column headers
- * (DoneAt, DoneBy, SentAt, SentBy = columns L..O) to every data tab if
- * they are not already present. Never touches existing data. Safe to
- * re-run. Run manually from the Apps Script editor.
+ * One-time / idempotent setup. Adds the tracking-column headers
+ * (DoneAt, DoneBy, SentAt, SentBy = L..O; ModifyWrong, ModifyFixed = P, Q)
+ * to every data tab if they are not already present. Never touches existing
+ * data. Safe to re-run. Run manually from the Apps Script editor.
  */
 function setup() {
   var ss = getSpreadsheet_();
-  var headers = ['DoneAt', 'DoneBy', 'SentAt', 'SentBy']; // L, M, N, O
+  var headerByCol = {}; // 0-based COL index -> header text
+  headerByCol[COL.DONE_AT] = 'DoneAt';
+  headerByCol[COL.DONE_BY] = 'DoneBy';
+  headerByCol[COL.SENT_AT] = 'SentAt';
+  headerByCol[COL.SENT_BY] = 'SentBy';
+  headerByCol[COL.MODIFY_WRONG] = 'ModifyWrong';
+  headerByCol[COL.MODIFY_FIXED] = 'ModifyFixed';
+
   TABS_CONFIG.forEach(function (tab) {
     var sheet = ss.getSheetByName(tab.sheetName);
     if (!sheet) { Logger.log('setup: missing data sheet ' + tab.sheetName); return; }
-    for (var i = 0; i < headers.length; i++) {
-      var col = COL.DONE_AT + 1 + i; // 12..15 (1-based)
-      var cell = sheet.getRange(1, col);
+    Object.keys(headerByCol).forEach(function (idx0) {
+      var cell = sheet.getRange(1, Number(idx0) + 1);
       if (String(cell.getValue()).trim() === '') {
-        cell.setValue(headers[i]);
-        Logger.log('setup: added header ' + headers[i] + ' to ' + tab.sheetName);
+        cell.setValue(headerByCol[idx0]);
+        Logger.log('setup: added header ' + headerByCol[idx0] + ' to ' + tab.sheetName);
       }
-    }
+    });
   });
   Logger.log('setup: done');
 }

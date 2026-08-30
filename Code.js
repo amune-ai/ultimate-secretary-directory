@@ -64,7 +64,7 @@ var TABS_CONFIG = [
 ];
 
 // Display order in the web app. "Done" and "أنجاز" are the tick/checkbox columns.
-var COLUMN_HEADERS = ['Timestamp', 'Name', 'ID', 'Center', 'Summary Dropdown', 'سكرتارية', 'Code', 'PDF Links', 'طباعة', 'أنجاز'];
+var COLUMN_HEADERS = ['Timestamp', 'Name', 'ID', 'Center', 'Summary Dropdown', 'سكرتارية', 'Code', 'PDF Links', 'طباعة', 'أنجاز', 'تعديل'];
 
 // Where each field actually lives in the sheet (0-based index within
 // the A:K range read below). Column B is currently unused.
@@ -82,9 +82,11 @@ var COL = {
   DONE_AT: 11,  // L  (accountability columns, added incrementally)
   DONE_BY: 12,  // M
   SENT_AT: 13,  // N
-  SENT_BY: 14   // O
+  SENT_BY: 14,  // O
+  MODIFY_WRONG: 15, // P  "Wrong"  (تعديل — needs correction)
+  MODIFY_FIXED: 16  // Q  "Fixed"  (تعديل — corrected)
 };
-var SHEET_COLUMN_COUNT = 15; // A:O  (includes the L:O accountability columns)
+var SHEET_COLUMN_COUNT = 17; // A:Q
 
 function doGet(e) {
   // No sheet data is embedded in the page — the client fetches it via
@@ -152,7 +154,14 @@ function getSheetRows_(ss, sheetName, scope) {
   return shapeSheetValues_(values, scope);
 }
 
-// Pure: raw A2:O values -> display rows, newest first. scope filters by the
+// 'fixed' if col Q says Fixed, else 'wrong' if col P says Wrong, else 'none'.
+function modifyState_(pVal, qVal) {
+  if (String(qVal || '').trim().toLowerCase() === 'fixed') return 'fixed';
+  if (String(pVal || '').trim().toLowerCase() === 'wrong') return 'wrong';
+  return 'none';
+}
+
+// Pure: raw A2:Q values -> display rows, newest first. scope filters by the
 // سكرتارية column (trimmed, both sides); falsy scope = no filter.
 function shapeSheetValues_(values, scope) {
   var wantScope = scope ? String(scope).trim() : '';
@@ -174,6 +183,7 @@ function shapeSheetValues_(values, scope) {
         code: String(row[COL.CODE] || ''),
         done: isDone_(row[COL.DONE]),
         sent: isSent_(row[COL.SENT]),
+        modify: modifyState_(row[COL.MODIFY_WRONG], row[COL.MODIFY_FIXED]),
         cells: [
           formatTimestamp_(row[COL.TIMESTAMP]),
           row[COL.NAME] || '',

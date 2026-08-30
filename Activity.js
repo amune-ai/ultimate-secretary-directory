@@ -115,11 +115,11 @@ function setRowModify(token, sheetName, code, rowHint, state) {
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) throw new Error('NOT_FOUND');
 
+  if (session.role !== 'admin') throw new Error('ADMIN_ONLY'); // secretaries see it, can't change it
+
   var values = sheet.getRange(2, 1, lastRow - 1, SHEET_COLUMN_COUNT).getValues();
   var loc = findRowByCode_(values, code, rowHint);
   var row = values[loc.index0];
-
-  tickGuard_(session, row, 'modify', true); // ownership check only
 
   var prev = modifyState_(row[COL.MODIFY_WRONG], row[COL.MODIFY_FIXED]);
   sheet.getRange(loc.sheetRow, COL.MODIFY_WRONG + 1).setValue(state === 'none' ? '' : 'Wrong');

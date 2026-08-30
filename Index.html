@@ -141,6 +141,8 @@
     }
     .count-badge-done { background: #e6f4ea; color: #1e8e3e; }   /* طباعة — green */
     .count-badge-sent { background: #e8eaf6; color: #000080; }   /* أنجاز — navy */
+    .count-badge-wrong { background: #fdecea; color: #d32f2f; }  /* خطأ انجاز — red */
+    .count-badge-modify { background: #fff4e5; color: #b26a00; } /* تعديل — amber */
     .done-pager {
       display: flex; align-items: center; justify-content: center; gap: 14px;
       padding: 8px 14px; font-size: 12px; color: #444;
@@ -565,6 +567,7 @@
     function buildTableMarkup(tab, rows, emptyMessage, showSentColumn) {
       // Pending drops the last two headers (أنجاز, تعديل); the طباعة table keeps all.
       var headers = showSentColumn ? COLUMN_HEADERS : COLUMN_HEADERS.slice(0, COLUMN_HEADERS.length - 2);
+      var isAdmin = (typeof SESSION !== 'undefined') && SESSION.role === 'admin';
 
       var html = '<table class="data-table" aria-label="' + escapeAttr(tab.label) + '"><thead><tr>';
       headers.forEach(function (h) {
@@ -600,9 +603,10 @@
                     (row.sent ? 'checked ' : '') + (noCode ? 'disabled title="لا يمكن التتبع: لا يوجد Code" ' : '') + '/></td>';
             var mState = row.modify || 'none';
             var mGlyph = mState === 'wrong' ? '✕' : (mState === 'fixed' ? '✓' : '✎');
+            var mDisabled = noCode || !isAdmin;
+            var mTitle = noCode ? 'لا يمكن التتبع: لا يوجد Code' : (isAdmin ? 'تعديل' : 'للمشرف فقط');
             html += '<td class="tick-cell"><button type="button" class="modify-btn modify-' + mState + '" ' +
-                    (noCode ? 'disabled title="لا يمكن التتبع: لا يوجد Code"' : 'title="تعديل" aria-label="تعديل"') +
-                    '>' + mGlyph + '</button></td>';
+                    (mDisabled ? 'disabled ' : '') + 'title="' + mTitle + '" aria-label="تعديل">' + mGlyph + '</button></td>';
           }
           html += '</tr>';
         });
@@ -620,9 +624,14 @@
       var badgeNum = (opts.totalCount != null) ? opts.totalCount : rows.length;
       var badges;
       if (opts.sentCount != null) {
-        // done section: two parallel labelled badges — طباعة (green), أنجاز (navy)
+        // done section: labelled badges — طباعة (green), أنجاز (navy),
+        // and (if provided) خطأ انجاز (red) + تعديل (amber)
         badges = '<span class="count-badge count-badge-done">طباعة ' + badgeNum + '</span>' +
                  ' <span class="count-badge count-badge-sent">أنجاز ' + opts.sentCount + '</span>';
+        if (opts.wrongCount != null) {
+          badges += ' <span class="count-badge count-badge-wrong">خطأ انجاز ' + opts.wrongCount + '</span>' +
+                    ' <span class="count-badge count-badge-modify">تعديل ' + opts.modifyCount + '</span>';
+        }
       } else {
         badges = '<span class="count-badge">' + badgeNum + '</span>';
       }
@@ -688,6 +697,8 @@
 
       var donePageInfo = paginateDoneByDay(doneRows);
       var doneSentCount = doneRows.filter(function (r) { return r.sent; }).length;
+      var doneWrongCount = doneRows.filter(function (r) { return r.modify === 'wrong'; }).length;
+      var doneModifyCount = doneRows.filter(function (r) { return r.modify === 'fixed'; }).length;
 
       var wrap = document.getElementById('tableWrap');
       wrap.innerHTML =
@@ -695,6 +706,8 @@
         buildSectionMarkup('', tab, donePageInfo.rows, doneEmpty, true, {
           totalCount: doneRows.length,
           sentCount: doneSentCount,
+          wrongCount: doneWrongCount,
+          modifyCount: doneModifyCount,
           footerHtml: donePagerHtml(donePageInfo)
         });
     }
@@ -753,6 +766,8 @@
             if (String(msg).indexOf('AUTH') !== -1) {
               try { localStorage.removeItem('usd_token'); } catch (x) {}
               showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+            } else if (String(msg).indexOf('ADMIN_ONLY') !== -1) {
+              showBanner('هذا الإجراء للمشرف فقط.', 'error');
             } else if (String(msg).indexOf('NOT_YOUR_ROW') !== -1) {
               showBanner('لا يمكنك تعديل صف سكرتارية أخرى.', 'error');
             } else if (/NOT_FOUND|AMBIGUOUS|NO_CODE/.test(String(msg))) {

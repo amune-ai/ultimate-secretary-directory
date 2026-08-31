@@ -1,31 +1,61 @@
-# Login + Accountability — v2 (incremental rebuild)
+# Login + Accountability — status
 
-Branch: `login-accountability-v2` (off `main`, cherry-picked the live security-fixed baseline).
+**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@23**).
+`main` holds the full history. `git push` to back up to GitHub.
 
-## Done & verified live on the @HEAD test deployment
-- slice 1 — L:O columns + `setup()` ✓
-- slice 2 — `Auth.gs`: login / sessions (Script Properties, 8h sliding) / lockout (5 tries / 15 min) ✓ (`runTests` passes)
-- slice 3 — scoped reads (`getBootstrapData`, secretary sees only their سكرتارية rows) + tick engine (`Activity.gs writeTick_`, Code-keyed, stamps L:O, appends `ActivityLog`, un-tick-Done cascades to clear Sent) ✓
-- slice 4 — `Summary.gs getAdminSummary` (per-secretary done/sent/untick, avg Done→Sent mins, oldest-pending hours) ✓
-- slice 5 — client: login form, session resume via `localStorage.usd_token`, scoped dashboard, filter hidden for secretaries, Code-keyed tick calls, admin summary panel + date picker ✓
-- `syncDataFast` restored to `Code.gs` (was only in a deleted backup; its trigger was erroring). ✓
+## Server files (Apps Script, concatenated into one scope by clasp)
+- `Code.gs` — config (`ADMIN_USERNAME='a1'`, `LOGIN_SHEET`, `ACTIVITY_SHEET`, session/lockout
+  consts), `COL` map (A:Q), `SHEET_COLUMN_COUNT=17`, `doGet` (no embedded data), scoped
+  reads (`getBootstrapData`, `refreshTabsData`, `shapeSheetValues_`, `modifyState_`),
+  `assertKnownSheet_`, plus the standalone `syncDataFast` (DocName sync — unrelated).
+- `Auth.gs` — `login` / `resumeSession` / `logout`, `checkCredentials_` (plaintext vs
+  `Login` tab), sessions in Script Properties (8h sliding), per-username lockout
+  (5 tries / 15 min in CacheService).
+- `Activity.gs` — `writeTick_` (Code-keyed طباعة/أنجاز writes, stamps L:O, appends
+  `ActivityLog`, un-tick-طباعة cascades to clear أنجاز), public `setRowDone` / `setRowSent`,
+  and `setRowModify` (admin-only, cols P/Q).
+- `Summary.gs` — `getAdminSummary` + pure `aggregateSummary_`.
+- `Setup.gs` — `setup` (idempotent: adds L:O + P/Q headers to the 3 data tabs) and
+  `runTests` (in-editor auth self-test). Both non-underscore so the editor Run menu
+  lists them (it hides `_`-suffixed names — that quirk cost hours in slice 1).
 
-## Root cause of the "login page stays" bug (this morning)
-`.login-view { display:flex }` overrode the `hidden` attribute, so the form stayed on
-screen sitting on top of the (working) dashboard. Fixed with `[hidden]{display:none!important}`.
-Login and data-load were never broken.
+## Sheet layout
+- Data tabs `UploadedData` / `UploadedVacations` / `UploadedEqrarawdah`:
+  A..K original, L `DoneAt`, M `DoneBy`, N `SentAt`, O `SentBy`,
+  **P `ModifyWrong` ("Wrong")**, **Q `ModifyFixed` ("Fixed")**.
+- `Login` tab: **Username | Password | Name | Role**. `Role` = `admin` or blank.
+  `a1` is a hardwired safety-net admin regardless of its Role cell.
+- `ActivityLog` tab: `timestamp | sheet | code | username | name | action | old | new`
+  (`action` ∈ `done` / `sent` / `modify`).
 
-## NOT done
-1. **Production deploy.** Still on `@HEAD` only. Production deployment
-   `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O` (@12)
-   still runs the old no-login version. Go live with:
-   `clasp deploy --deploymentId AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O --description "Login + accountability v2"`
-2. **Rotate `(redacted — see Login tab)`** (وضحة …) in the Login tab — exposed repeatedly in chat + local git. Ideally set every Login password to 12+ chars.
-3. **Merge** `login-accountability-v2` → `main` (squash keeps history clean).
+## Client (`Index.html`) — current behaviour
+- Login form; session remembered in `localStorage.usd_token`.
+- Secretary: sees only her own rows across the 3 tabs, no سكرتارية filter, تعديل button
+  disabled (view-only).
+- Admin: all rows, filter dropdown, and a collapsible **summary panel** ("ملخص اليوم لكل
+  سكرتارية") — collapsed by default (`+` / `−`, remembered per browser). Columns:
+  السكرتارية | طباعة | أنجاز | تراجع | خطأ انجاز | تعديل | أقدم طلب معلّق (ساعات).
+  طباعة/أنجاز/تراجع are date-filtered (date picker); خطأ انجاز / تعديل / أقدم-معلّق are live.
+- Each tab shows **Pending** and **طباعة** (was "Done") tables. The طباعة column header
+  reads طباعة in both. The طباعة table:
+  - header badges: `طباعة N` (green), `أنجاز N` (navy), `خطأ انجاز N` (red = rows ever
+    flagged, col P set), `تعديل N` (`#e69138` = rows since fixed, col Q set).
+  - paginated **3 calendar days per page**, numbered pager `1 2 3 …`.
+  - last column **تعديل**: admin clicks cycle **✕ Wrong** (red, row flashes, writes col P)
+    ↔ **✓ Fixed** (`#e69138`, writes col Q; P kept). Logs a `modify` row each click.
+- Any tick (طباعة / أنجاز / تعديل) reloads the admin summary panel too.
 
-## Notes
-- `setup` and `runTests` are non-underscore so the editor Run menu lists them; both are
-  idempotent / low-risk if called anonymously. The Apps Script editor hides `_`-suffixed
-  functions from the Run dropdown — that quirk is what made slice 1 look "broken".
-- Login tab as read by the server (verified): 6 rows, a1=admin, the other 5 secretaries;
-  names match the سكرتارية column (secretary `alajmi5635` sees 28 rows, admin sees 185).
+## Known ceilings (deliberate)
+- Plaintext passwords in the `Login` tab.
+- Sliding sessions, no absolute cap.
+- `setup` / `runTests` callable anonymously (idempotent / throwaway — low harm).
+- No `LockService` around tick writes (fine at ~6 users on distinct rows).
+- خطأ انجاز / تعديل count *rows* (col P/Q set), not per-occurrence re-flags — a per-time
+  tally would come from the `ActivityLog` `modify` rows instead.
+
+## On the admin (not code)
+- Rotate the وضحة password in the `Login` tab (was exposed during debugging; scrubbed
+  from git history but change it anyway).
+- Give each secretary their username + password.
+- A secretary seeing an empty dashboard = her `Login` `Name` doesn't exactly match the
+  سكرتارية column on her rows.

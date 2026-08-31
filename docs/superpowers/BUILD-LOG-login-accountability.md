@@ -106,3 +106,60 @@ as `@13`. `login-accountability-v2` fast-forward merged to `main`.
 - `setup` / `runTests` are callable anonymously (low harm — idempotent /
   throwaway).
 - No `LockService` around tick writes (fine at 6 users on mostly-distinct rows).
+
+---
+
+## Session 2 (2026-08-31, after the initial ship) — iterative changes
+
+Worked directly on `main`, one change per commit, each pushed to `@HEAD`, tested
+by the admin, then deployed to production (`clasp deploy` is run by the admin —
+the agent's permission classifier blocks both `clasp deploy` and `git push`).
+Production moved @13 → @23 over these.
+
+**Admins**
+- `Login` tab gained a **`Role`** column (`admin` / blank). Any number of admins
+  now; `a1` stays a hardwired safety-net admin. `checkCredentials_` reads the
+  cell; `readLoginRows_` reads A:D defensively (`Math.min(4, maxColumns)`).
+
+**Summary panel ("ملخص اليوم لكل سكرتارية")**
+- `منجز` → `طباعة`; dropped the "متوسط الدقائق (منجز→أنجاز)" column and its
+  server-side latency computation.
+- Added a **collapse/expand toggle** (`+` / `−`), **collapsed by default**,
+  remembered per browser (`localStorage usd_summary_collapsed`).
+- Added per-secretary **`خطأ انجاز`** (red) and **`تعديل`** (`#e69138`) columns,
+  live from cols P/Q. `خطأ انجاز` = rows *ever* flagged (P set, stays counted
+  after fixing); `تعديل` = of those, the ones since fixed (Q set).
+- The panel now reloads after *any* tick (previously only on refresh / date
+  change), so its columns stay live.
+
+**طباعة table (was "Done" — table 3)**
+- Section title dropped; two matching badges **`طباعة N`** (green) + **`أنجاز N`**
+  (navy), later joined by **`خطأ انجاز N`** (red) + **`تعديل N`** (`#e69138`).
+- **Pagination** by calendar day — **3 days per page** — with a numbered pager
+  (`1 2 3 …`, current page highlighted). Page resets on tab switch / filter /
+  refresh.
+- New last column **`تعديل`**: a 3-state control.
+  - First click (from untouched) → **✕ Wrong**: writes `Wrong` to **col P**,
+    row font red + flashing (`@keyframes modblink`).
+  - Click again → **✓ Fixed**: writes `Fixed` to **col Q**, **col P keeps
+    `Wrong`**, row font `#e69138`.
+  - After that it loops Wrong ↔ Fixed only (no clear-to-none from the button —
+    col P is a permanent tally for the `خطأ انجاز` count).
+  - **Admin-only**: `setRowModify` throws `ADMIN_ONLY` for non-admins; the button
+    renders disabled for secretaries (they still see the ✕/✓ state and the row
+    colour).
+  - Each click appends a `modify` row to `ActivityLog` (old→new state).
+- The checkbox column header "Done" was renamed **طباعة** in both the Pending and
+  طباعة tables (via `COLUMN_HEADERS`).
+
+**Data model**
+- `COL` extended: `MODIFY_WRONG` = P (15), `MODIFY_FIXED` = Q (16).
+  `SHEET_COLUMN_COUNT` 15 → 17. `setup` now also adds `ModifyWrong` /
+  `ModifyFixed` headers. `modifyState_(p, q)` → `'fixed'` / `'wrong'` / `'none'`.
+
+**Bugs fixed during the session**
+- `خطأ انجاز` was dropping to 0 when a row was marked Fixed — changed to count
+  every row whose col P is set (`wrong` OR `fixed` state).
+- Summary panel showed stale counts after a tick — added a post-tick reload.
+
+**Colour history of the Fixed state:** navy → `#8a6d00` (dark yellow) → `#e69138`.

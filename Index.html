@@ -142,7 +142,7 @@
     .count-badge-done { background: #e6f4ea; color: #1e8e3e; }   /* طباعة — green */
     .count-badge-sent { background: #e8eaf6; color: #000080; }   /* أنجاز — navy */
     .count-badge-wrong { background: #fdecea; color: #d32f2f; }  /* خطأ انجاز — red */
-    .count-badge-modify { background: #fff4e5; color: #b26a00; } /* تعديل — amber */
+    .count-badge-modify { background: #fdf6e3; color: #8a6d00; } /* تعديل — dark yellow */
     .done-pager {
       display: flex; align-items: center; justify-content: center; gap: 14px;
       padding: 8px 14px; font-size: 12px; color: #444;
@@ -1006,7 +1006,7 @@
           '<td>' + r.sent + '</td>' +
           '<td>' + r.untick + '</td>' +
           '<td' + (wrong > 0 ? ' style="color:#d32f2f;font-weight:700"' : '') + '>' + wrong + '</td>' +
-          '<td>' + (r.fixed || 0) + '</td>' +
+          '<td' + ((r.fixed || 0) > 0 ? ' style="color:#8a6d00;font-weight:700"' : '') + '>' + (r.fixed || 0) + '</td>' +
           '<td>' + r.oldestPendingHours + '</td>';
         tbody.appendChild(tr);
       });

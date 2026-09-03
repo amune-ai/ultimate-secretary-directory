@@ -163,3 +163,33 @@ Production moved @13 → @23 over these.
 - Summary panel showed stale counts after a tick — added a post-tick reload.
 
 **Colour history of the Fixed state:** navy → `#8a6d00` (dark yellow) → `#e69138`.
+
+---
+
+## Session 3 (2026-09-04) — summary panel reworked
+
+Production @25 → @28. Same workflow (agent edits + `clasp push` to @HEAD;
+admin runs `clasp deploy` and `git push`).
+
+- **Renamed** "ملخص اليوم لكل سكرتارية" → **"ملخص لكل سكرتارية"**.
+- **Removed the date picker.** طباعة / أنجاز had been counted per selected day
+  from `ActivityLog`; the admin wanted totals, so the day concept went away —
+  first to all-time event totals, then (see below) to current-state.
+- **Attribution fixed:** counts are now credited to the **row's سكرتارية**
+  (via a `Code → سكرتارية` lookup built from the sheet), not to whoever was
+  logged in when they clicked. Retroactive — every historical `ActivityLog`
+  entry re-attributes; falls back to the name recorded at the time if the
+  `Code` no longer exists.
+- **طباعة / أنجاز are now current-state**, not event counts: "her rows
+  currently ticked طباعة / أنجاز", summed across the 3 tabs — so the panel
+  equals the sum of the 3 tabs' طباعة-section badges (no filter). خطأ انجاز /
+  تعديل were already current-state (cols P/Q). **تراجع** is the lone exception
+  and stays an event count (an "undo" has no current state) — computed from
+  `ActivityLog` un-tick rows (`action` done/sent, `newValue` empty), which
+  double-counts the طباعة→أنجاز cascade.
+- **Hid two columns** (`<th>`/`<td>` left as comments, server payload
+  unchanged): **تراجع** and **أقدم طلب معلّق (ساعات)**. Visible set is now
+  السكرتارية | طباعة | أنجاز | خطأ انجاز | تعديل.
+
+`Summary.gs` no longer has `dateInTz_` (dead after the date filter was removed);
+`getAdminSummary` takes just `token`.

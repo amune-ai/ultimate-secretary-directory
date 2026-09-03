@@ -1,6 +1,6 @@
 # Login + Accountability — status
 
-**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@23**).
+**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@28**).
 `main` holds the full history. `git push` to back up to GitHub.
 
 ## Server files (Apps Script, concatenated into one scope by clasp)
@@ -32,10 +32,17 @@
 - Login form; session remembered in `localStorage.usd_token`.
 - Secretary: sees only her own rows across the 3 tabs, no سكرتارية filter, تعديل button
   disabled (view-only).
-- Admin: all rows, filter dropdown, and a collapsible **summary panel** ("ملخص اليوم لكل
-  سكرتارية") — collapsed by default (`+` / `−`, remembered per browser). Columns:
-  السكرتارية | طباعة | أنجاز | تراجع | خطأ انجاز | تعديل | أقدم طلب معلّق (ساعات).
-  طباعة/أنجاز/تراجع are date-filtered (date picker); خطأ انجاز / تعديل / أقدم-معلّق are live.
+- Admin: all rows, filter dropdown, and a collapsible **summary panel**
+  ("ملخص لكل سكرتارية") — collapsed by default (`+` / `−`, remembered per browser).
+  All-time, all-3-tabs, no date filter. Per secretary, **credited to the row's
+  سكرتارية** (looked up by the row's `Code`), not whoever clicked:
+  - **Visible columns:** السكرتارية | طباعة | أنجاز | خطأ انجاز | تعديل.
+    طباعة/أنجاز = rows *currently* ticked (same predicate as the طباعة-section
+    badges, summed over the 3 tabs); خطأ انجاز = rows ever flagged (col P);
+    تعديل = of those, since fixed (col Q).
+  - **Hidden columns** (server still returns them — `<th>`/`<td>` commented in
+    the markup): **تراجع** (lifetime un-tick event count) and
+    **أقدم طلب معلّق (ساعات)** (age of the oldest row with no طباعة yet).
 - Each tab shows **Pending** and **طباعة** (was "Done") tables. The طباعة column header
   reads طباعة in both. The طباعة table:
   - header badges: `طباعة N` (green), `أنجاز N` (navy), `خطأ انجاز N` (red = rows ever

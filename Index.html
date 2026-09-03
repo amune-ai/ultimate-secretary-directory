@@ -386,8 +386,8 @@
           <thead><tr>
             <th>السكرتارية</th><th>طباعة</th><th>أنجاز</th>
             <th>خطأ انجاز</th><th>تعديل</th>
-            <th>أقدم طلب معلّق (ساعات)</th>
-            <!-- تراجع column hidden for now — server still returns r.untick; re-add a <th>تراجع</th> here and the <td> below to restore -->
+            <!-- hidden for now (server still returns r.untick / r.oldestPendingHours):
+                 re-add <th>تراجع</th> and/or <th>أقدم طلب معلّق (ساعات)</th> here, plus the matching <td> below -->
 
           </tr></thead>
           <tbody></tbody>
@@ -987,7 +987,7 @@
       tbody.innerHTML = '';
       var rows = (res && res.rows) || [];
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-row">لا يوجد بيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">لا يوجد بيانات</td></tr>';
         return;
       }
       rows.forEach(function (r) {
@@ -999,8 +999,8 @@
           '<td>' + r.sent + '</td>' +
           /* تراجع hidden: '<td>' + r.untick + '</td>' + */
           '<td' + (wrong > 0 ? ' style="color:#d32f2f;font-weight:700"' : '') + '>' + wrong + '</td>' +
-          '<td' + ((r.fixed || 0) > 0 ? ' style="color:#e69138;font-weight:700"' : '') + '>' + (r.fixed || 0) + '</td>' +
-          '<td>' + r.oldestPendingHours + '</td>';
+          '<td' + ((r.fixed || 0) > 0 ? ' style="color:#e69138;font-weight:700"' : '') + '>' + (r.fixed || 0) + '</td>';
+          /* hidden: '<td>' + r.untick + '</td>'  and  '<td>' + r.oldestPendingHours + '</td>' */
         tbody.appendChild(tr);
       });
     }

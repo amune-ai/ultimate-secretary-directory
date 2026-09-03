@@ -334,6 +334,8 @@
       color: #444; font-size: 15px; font-weight: 700; cursor: pointer;
     }
     #summaryTable th { background: #37474f; color: #fff; }
+    .pbar-cell { display: inline-flex; align-items: center; gap: 6px; direction: ltr; }
+    .pbar-pct { font-size: 11px; font-weight: 700; color: #444; min-width: 30px; text-align: right; }
     .pbar {
       width: 96px; height: 14px; border-radius: 7px; overflow: hidden;
       display: inline-block; vertical-align: middle;
@@ -996,9 +998,12 @@
     // A 2-colour bar: the track colour is the "remainder", the fill is the
     // "done" part. denom 0 -> a grey empty bar.
     function progressBar(cls, denom, pct, title) {
-      if (!denom) return '<div class="pbar pbar-empty" title="—"></div>';
-      return '<div class="pbar ' + cls + '" title="' + escapeAttr(title + ' (' + pct + '%)') + '">' +
-             '<span class="pbar-fill" style="width:' + pct + '%"></span></div>';
+      var label = denom ? pct + '%' : '—';
+      var bar = denom
+        ? '<div class="pbar ' + cls + '" title="' + escapeAttr(title + ' (' + pct + '%)') + '">' +
+          '<span class="pbar-fill" style="width:' + pct + '%"></span></div>'
+        : '<div class="pbar pbar-empty" title="—"></div>';
+      return '<span class="pbar-cell"><span class="pbar-pct">' + label + '</span>' + bar + '</span>';
     }
 
     function renderSummary(res) {

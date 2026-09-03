@@ -1,8 +1,12 @@
 /**
- * Admin summary, per secretary, all-time:
- *   طباعة / أنجاز / تراجع  = total ticks / un-ticks ever (from ActivityLog)
- *   خطأ انجاز / تعديل       = rows currently flagged (col P) / since fixed (col Q)
- *   أقدم طلب معلّق (ساعات)  = age of her oldest row with no طباعة yet
+ * Admin summary, per secretary, across all 3 tabs. Current-state, not events —
+ * so it matches the طباعة-section badges summed over the 3 tabs:
+ *   طباعة     = her rows currently ticked طباعة (col J)
+ *   أنجاز     = her rows currently ticked أنجاز (col K)
+ *   خطأ انجاز = her rows ever flagged (col P)     تعديل = of those, fixed (col Q)
+ *   أقدم طلب معلّق (ساعات) = age of her oldest row with no طباعة yet
+ *   تراجع     = the one lifetime event count — how many un-ticks she caused
+ *              (from ActivityLog; there is no "current state" for an undo)
  * Pure aggregation + a thin getAdminSummary wrapper.
  */
 
@@ -32,17 +36,13 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
     });
   });
 
+  // تراجع — the only event-based column: count un-tick rows in ActivityLog.
   (logRows || []).forEach(function (r) {
+    if (String(r[5] || '') === 'modify') return;
+    if (String(r[7] == null ? '' : r[7]) !== '') return; // keep only un-ticks (newValue empty)
     var code = String(r[2] == null ? '' : r[2]).trim();
     var sec = ownerByCode[code] || String(r[4] == null ? '' : r[4]).trim();
-    if (!sec) return;
-    var action = String(r[5] || '');
-    var newVal = String(r[7] == null ? '' : r[7]);
-    var b = bucket(sec);
-    if (action === 'modify') return;          // تعديل is tracked by cols P/Q, not here
-    if (newVal === '') { b.untick++; return; } // any un-tick (طباعة or أنجاز, incl. cascade)
-    if (action === 'done') b.done++;
-    else if (action === 'sent') b.sent++;
+    if (sec) bucket(sec).untick++;
   });
 
   var now = Date.now();
@@ -52,9 +52,12 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
       if (!sec) return;
       var b = bucket(sec);
 
-      // تعديل state (col P/Q) — live, not date-filtered.
-      // wrong = ever flagged (col P set, stays counted after fixing);
-      // fixed = of those, the ones since corrected (col Q set).
+      // current state — same predicates the طباعة-section badges use
+      if (isDone_(row[COL.DONE])) b.done++;
+      if (isSent_(row[COL.SENT])) b.sent++;
+
+      // تعديل state (col P/Q): wrong = ever flagged (P set, stays after fixing);
+      // fixed = of those, the ones since corrected (Q set).
       var mstate = modifyState_(row[COL.MODIFY_WRONG], row[COL.MODIFY_FIXED]);
       if (mstate === 'wrong' || mstate === 'fixed') b.wrong++;
       if (mstate === 'fixed') b.fixed++;

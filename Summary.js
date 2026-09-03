@@ -20,8 +20,21 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
     return isNaN(d.getTime()) ? null : d;
   }
 
+  // code -> the row's current سكرتارية, so every ActivityLog entry is credited
+  // to the row's owner (not whoever clicked). Falls back to the log's recorded
+  // name if the Code no longer exists in the sheet.
+  var ownerByCode = {};
+  Object.keys(dataRowsBySheet || {}).forEach(function (sheetName) {
+    dataRowsBySheet[sheetName].forEach(function (row) {
+      var c = String(row[COL.CODE] == null ? '' : row[COL.CODE]).trim();
+      var o = String(row[COL.SECRETARIAT] == null ? '' : row[COL.SECRETARIAT]).trim();
+      if (c && o) ownerByCode[c] = o;
+    });
+  });
+
   (logRows || []).forEach(function (r) {
-    var sec = String(r[4] == null ? '' : r[4]).trim();
+    var code = String(r[2] == null ? '' : r[2]).trim();
+    var sec = ownerByCode[code] || String(r[4] == null ? '' : r[4]).trim();
     if (!sec) return;
     var action = String(r[5] || '');
     var newVal = String(r[7] == null ? '' : r[7]);

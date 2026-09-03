@@ -1,17 +1,12 @@
 /**
- * Admin summary: per-secretary Done(طباعة)/Sent(أنجاز)/un-tick(تراجع) counts
- * for a given day, plus the oldest still-pending request age (live, in hours).
+ * Admin summary, per secretary, all-time:
+ *   طباعة / أنجاز / تراجع  = total ticks / un-ticks ever (from ActivityLog)
+ *   خطأ انجاز / تعديل       = rows currently flagged (col P) / since fixed (col Q)
+ *   أقدم طلب معلّق (ساعات)  = age of her oldest row with no طباعة yet
  * Pure aggregation + a thin getAdminSummary wrapper.
  */
 
-function dateInTz_(dateObj, tz) {
-  if (typeof Utilities !== 'undefined' && Utilities && Utilities.formatDate) {
-    return Utilities.formatDate(dateObj, tz, 'yyyy-MM-dd');
-  }
-  return dateObj.toISOString().slice(0, 10); // Node tests use UTC dates
-}
-
-function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
+function aggregateSummary_(logRows, dataRowsBySheet) {
   var perSec = {};
   function bucket(name) {
     if (!perSec[name]) {
@@ -26,14 +21,13 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
   }
 
   (logRows || []).forEach(function (r) {
-    var when = asDate(r[0]);
-    if (!when || dateInTz_(when, tz) !== dateStr) return;
     var sec = String(r[4] == null ? '' : r[4]).trim();
     if (!sec) return;
     var action = String(r[5] || '');
     var newVal = String(r[7] == null ? '' : r[7]);
     var b = bucket(sec);
-    if (newVal === '') { b.untick++; return; }
+    if (action === 'modify') return;          // تعديل is tracked by cols P/Q, not here
+    if (newVal === '') { b.untick++; return; } // any un-tick (طباعة or أنجاز, incl. cascade)
     if (action === 'done') b.done++;
     else if (action === 'sent') b.sent++;
   });
@@ -73,13 +67,10 @@ function aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) {
   });
 }
 
-// Called via google.script.run by the admin view. dateStr 'yyyy-MM-dd' or ''.
-function getAdminSummary(token, dateStr) {
+// Called via google.script.run by the admin view. All-time, no date filter.
+function getAdminSummary(token) {
   var session = requireSession_(token);
   if (session.role !== 'admin') throw new Error('AUTH');
-
-  var tz = Session.getScriptTimeZone();
-  if (!dateStr) dateStr = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
 
   var ss = getSpreadsheet_();
 
@@ -96,9 +87,9 @@ function getAdminSummary(token, dateStr) {
       : [];
   });
 
-  return { date: dateStr, rows: aggregateSummary_(logRows, dataRowsBySheet, dateStr, tz) };
+  return { rows: aggregateSummary_(logRows, dataRowsBySheet) };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { dateInTz_: dateInTz_, aggregateSummary_: aggregateSummary_ };
+  module.exports = { aggregateSummary_: aggregateSummary_ };
 }

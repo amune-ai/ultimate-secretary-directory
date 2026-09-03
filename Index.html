@@ -327,9 +327,6 @@
       gap: 12px; padding: 10px 14px; background: #f5f6f8; border-bottom: 1px solid var(--border);
       font-size: 13px;
     }
-    .summary-head input[type="date"] {
-      padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
-    }
     .summary-head-left { display: flex; align-items: center; gap: 8px; }
     .summary-toggle {
       width: 24px; height: 24px; padding: 0; line-height: 1;
@@ -381,9 +378,8 @@
       <div class="summary-head">
         <span class="summary-head-left">
           <button id="summaryToggle" class="summary-toggle" type="button" aria-label="طي أو عرض الجدول">+</button>
-          <strong>ملخص اليوم لكل سكرتارية</strong>
+          <strong>ملخص لكل سكرتارية</strong>
         </span>
-        <input type="date" id="summaryDate">
       </div>
       <div id="summaryBody" class="table-scroll" hidden>
         <table class="data-table" id="summaryTable" aria-label="ملخص الأداء">
@@ -976,17 +972,12 @@
     }
 
     function loadSummary() {
-      var dateInput = document.getElementById('summaryDate');
-      var dateStr = dateInput.value || '';
       google.script.run
-        .withSuccessHandler(function (res) {
-          if (dateInput && res && res.date && !dateInput.value) dateInput.value = res.date;
-          renderSummary(res);
-        })
+        .withSuccessHandler(renderSummary)
         .withFailureHandler(function (err) {
           showBanner('تعذّر تحميل الملخص: ' + (err && err.message ? err.message : err), 'error');
         })
-        .getAdminSummary(SESSION.token, dateStr);
+        .getAdminSummary(SESSION.token);
     }
 
     function renderSummary(res) {
@@ -994,7 +985,7 @@
       tbody.innerHTML = '';
       var rows = (res && res.rows) || [];
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">لا يوجد نشاط لهذا اليوم</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">لا يوجد بيانات</td></tr>';
         return;
       }
       rows.forEach(function (r) {
@@ -1011,8 +1002,6 @@
         tbody.appendChild(tr);
       });
     }
-
-    document.getElementById('summaryDate').addEventListener('change', loadSummary);
 
     // Collapse / expand the summary table; remembered per browser.
     // Default is collapsed — only an explicit '0' keeps it open.

@@ -334,6 +334,16 @@
       color: #444; font-size: 15px; font-weight: 700; cursor: pointer;
     }
     #summaryTable th { background: #37474f; color: #fff; }
+    .pbar {
+      width: 96px; height: 14px; border-radius: 7px; overflow: hidden;
+      display: inline-block; vertical-align: middle;
+    }
+    .pbar-fill { display: block; height: 100%; }
+    .pbar-1 { background: #1e8e3e; }            /* طباعة green = remainder */
+    .pbar-1 .pbar-fill { background: #000080; } /* أنجاز navy = fill */
+    .pbar-2 { background: #d32f2f; }            /* خطأ انجاز red = remainder */
+    .pbar-2 .pbar-fill { background: #e69138; } /* تعديل yellow = fill */
+    .pbar-empty { background: #e3e6ea; }
   </style>
 </head>
 <body>
@@ -386,6 +396,7 @@
           <thead><tr>
             <th>السكرتارية</th><th>طباعة</th><th>أنجاز</th>
             <th>خطأ انجاز</th><th>تعديل</th>
+            <th>Progres 1</th><th>Progres 2</th>
             <!-- hidden for now (server still returns r.untick / r.oldestPendingHours):
                  re-add <th>تراجع</th> and/or <th>أقدم طلب معلّق (ساعات)</th> here, plus the matching <td> below -->
 
@@ -982,16 +993,29 @@
         .getAdminSummary(SESSION.token);
     }
 
+    // A 2-colour bar: the track colour is the "remainder", the fill is the
+    // "done" part. denom 0 -> a grey empty bar.
+    function progressBar(cls, denom, pct, title) {
+      if (!denom) return '<div class="pbar pbar-empty" title="—"></div>';
+      return '<div class="pbar ' + cls + '" title="' + escapeAttr(title + ' (' + pct + '%)') + '">' +
+             '<span class="pbar-fill" style="width:' + pct + '%"></span></div>';
+    }
+
     function renderSummary(res) {
       var tbody = document.querySelector('#summaryTable tbody');
       tbody.innerHTML = '';
       var rows = (res && res.rows) || [];
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">لا يوجد بيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">لا يوجد بيانات</td></tr>';
         return;
       }
       rows.forEach(function (r) {
         var wrong = r.wrong || 0;
+        var fixed = r.fixed || 0;
+        // Progres 1 = أنجاز as % of طباعة (navy fill over green track).
+        // Progres 2 = تعديل as % of خطأ انجاز (yellow fill over red track).
+        var p1 = r.done > 0 ? Math.round(r.sent / r.done * 100) : 0;
+        var p2 = wrong > 0 ? Math.round(fixed / wrong * 100) : 0;
         var tr = document.createElement('tr');
         tr.innerHTML =
           '<td>' + escapeHtml(r.secretary) + '</td>' +
@@ -999,7 +1023,9 @@
           '<td>' + r.sent + '</td>' +
           /* تراجع hidden: '<td>' + r.untick + '</td>' + */
           '<td' + (wrong > 0 ? ' style="color:#d32f2f;font-weight:700"' : '') + '>' + wrong + '</td>' +
-          '<td' + ((r.fixed || 0) > 0 ? ' style="color:#e69138;font-weight:700"' : '') + '>' + (r.fixed || 0) + '</td>';
+          '<td' + (fixed > 0 ? ' style="color:#e69138;font-weight:700"' : '') + '>' + fixed + '</td>' +
+          '<td>' + progressBar('pbar-1', r.done, p1, 'أنجاز ' + r.sent + ' / طباعة ' + r.done) + '</td>' +
+          '<td>' + progressBar('pbar-2', wrong, p2, 'تعديل ' + fixed + ' / خطأ انجاز ' + wrong) + '</td>';
           /* hidden: '<td>' + r.untick + '</td>'  and  '<td>' + r.oldestPendingHours + '</td>' */
         tbody.appendChild(tr);
       });

@@ -339,6 +339,7 @@
     #summaryTable th:first-child, #summaryTable td:first-child { text-align: start; }
     #summaryTable th { background: #37474f; color: #fff; }
     .pbar-cell { display: inline-flex; align-items: center; gap: 6px; direction: ltr; }
+    .pbar-cell-rev { flex-direction: row-reverse; } /* Progres 1: counts <-> % swapped */
     .pbar-pct { font-size: 11px; font-weight: 700; color: #444; min-width: 30px; text-align: right; }
     .pbar {
       width: 96px; height: 14px; border-radius: 7px; overflow: hidden;
@@ -347,8 +348,8 @@
     .pbar-fill { display: block; height: 100%; }
     .pbar-2 { background: #d32f2f; }            /* خطأ انجاز red = remainder */
     .pbar-2 .pbar-fill { background: #e69138; } /* تعديل yellow = fill */
-    /* Progres 1 — three pipeline stages over her total rows */
-    .pbar-3 { display: flex; background: #e3e6ea; }
+    /* Progres 1 — three pipeline stages over her total rows, right-to-left */
+    .pbar-3 { display: flex; flex-direction: row-reverse; background: #e3e6ea; }
     .pbar-3 .seg { height: 100%; }
     .seg-pending { background: #cfd4da; }   /* معلّق — grey */
     .seg-print   { background: #1e8e3e; }   /* طباعة (not yet أنجاز) — green */
@@ -1026,7 +1027,7 @@
       var green = Math.max(0, done - sent);
       var total = pending + green + sent; // = pending + done
       if (!total) {
-        return '<span class="pbar-cell"><span class="pbar-pct">—</span><div class="pbar pbar-empty"></div></span>';
+        return '<span class="pbar-cell pbar-cell-rev"><span class="pbar-pct">—</span><div class="pbar pbar-empty"></div></span>';
       }
       var pW = Math.round(pending / total * 100);
       var gW = Math.round(green / total * 100);
@@ -1034,7 +1035,7 @@
       var base = pending + sent;
       var pct = base ? Math.round(sent / base * 100) : 0;
       var title = 'معلّق ' + pending + ' · طباعة ' + green + ' · أنجاز ' + sent + '  (' + pct + '%)';
-      return '<span class="pbar-cell">' +
+      return '<span class="pbar-cell pbar-cell-rev">' +
         '<span class="pbar-pct">' + pct + '%</span>' +
         '<div class="pbar pbar-3" title="' + escapeAttr(title) + '">' +
           '<span class="seg seg-pending" style="width:' + pW + '%"></span>' +

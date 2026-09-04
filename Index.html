@@ -345,17 +345,21 @@
       width: 96px; height: 14px; border-radius: 7px; overflow: hidden;
       display: inline-block; vertical-align: middle;
     }
-    .pbar-fill { display: block; height: 100%; }
-    .pbar-2 { background: #d32f2f; }            /* خطأ انجاز red = remainder */
-    .pbar-2 .pbar-fill { background: #e69138; } /* تعديل yellow = fill */
     /* Progres 1 — three pipeline stages over her total rows, right-to-left */
     .pbar-3 { display: flex; flex-direction: row-reverse; background: #e3e6ea; }
     .pbar-3 .seg { height: 100%; }
     .seg-pending { background: #cfd4da; }   /* معلّق — grey */
     .seg-print   { background: #1e8e3e; }   /* طباعة (not yet أنجاز) — green */
     .seg-sent    { background: #000080; }   /* أنجاز — navy */
+    /* Progres 2 — same treatment: خطأ انجاز -> تعديل, right-to-left */
+    .pbar-2b { display: flex; flex-direction: row-reverse; background: #e3e6ea; }
+    .pbar-2b .seg { height: 100%; }
+    .seg-wrong { background: #d32f2f; }     /* خطأ انجاز (not yet fixed) — red */
+    .seg-fixed { background: #e69138; }     /* تعديل — yellow */
     .pbar-nums { font-size: 10px; font-weight: 700; }
     .pbar-nums .n-p { color: #888; }
+    .pbar-nums .n-w { color: #d32f2f; }
+    .pbar-nums .n-f { color: #e69138; }
     .pbar-nums .n-g { color: #1e8e3e; }
     .pbar-nums .n-s { color: #000080; }
     .pbar-empty { background: #e3e6ea; }
@@ -1008,15 +1012,26 @@
         .getAdminSummary(SESSION.token);
     }
 
-    // A 2-colour bar: the track colour is the "remainder", the fill is the
-    // "done" part. denom 0 -> a grey empty bar. (Used by Progres 2.)
-    function progressBar(cls, denom, pct, title) {
-      var label = denom ? pct + '%' : '—';
-      var bar = denom
-        ? '<div class="pbar ' + cls + '" title="' + escapeAttr(title + ' (' + pct + '%)') + '">' +
-          '<span class="pbar-fill" style="width:' + pct + '%"></span></div>'
-        : '<div class="pbar pbar-empty" title="—"></div>';
-      return '<span class="pbar-cell"><span class="pbar-pct">' + label + '</span>' + bar + '</span>';
+    // Progres 2 — same treatment as Progres 1: خطأ انجاز -> تعديل as two
+    // exclusive stages over her total flagged rows (wrong = ever flagged,
+    // incl. fixed ones; fixed = of those, since corrected).
+    function progressBar2(wrong, fixed) {
+      if (!wrong) {
+        return '<span class="pbar-cell pbar-cell-rev"><span class="pbar-pct">—</span><div class="pbar pbar-empty"></div></span>';
+      }
+      var stillWrong = Math.max(0, wrong - fixed);
+      var fW = Math.round(fixed / wrong * 100);
+      var wW = Math.max(0, 100 - fW);
+      var pct = fW;
+      var title = 'خطأ انجاز ' + stillWrong + ' · تعديل ' + fixed + '  (' + pct + '%)';
+      return '<span class="pbar-cell pbar-cell-rev">' +
+        '<span class="pbar-pct">' + pct + '%</span>' +
+        '<div class="pbar pbar-2b" title="' + escapeAttr(title) + '">' +
+          '<span class="seg seg-wrong" style="width:' + wW + '%"></span>' +
+          '<span class="seg seg-fixed" style="width:' + fW + '%"></span>' +
+        '</div>' +
+        '<span class="pbar-nums"><b class="n-w">' + stillWrong + '</b>·<b class="n-f">' + fixed + '</b></span>' +
+        '</span>';
     }
 
     // Progres 1 — the pipeline معلّق -> طباعة -> أنجاز as three exclusive stages
@@ -1057,8 +1072,6 @@
       rows.forEach(function (r) {
         var wrong = r.wrong || 0;
         var fixed = r.fixed || 0;
-        // Progres 2 = تعديل as % of خطأ انجاز (yellow fill over red track).
-        var p2 = wrong > 0 ? Math.round(fixed / wrong * 100) : 0;
         var tr = document.createElement('tr');
         tr.innerHTML =
           '<td>' + escapeHtml(r.secretary) + '</td>' +
@@ -1069,7 +1082,7 @@
           '<td' + (wrong > 0 ? ' style="color:#d32f2f;font-weight:700"' : '') + '>' + wrong + '</td>' +
           '<td' + (fixed > 0 ? ' style="color:#e69138;font-weight:700"' : '') + '>' + fixed + '</td>' +
           '<td>' + progressBar1(r.pending || 0, r.done, r.sent) + '</td>' +
-          '<td>' + progressBar('pbar-2', wrong, p2, 'تعديل ' + fixed + ' / خطأ انجاز ' + wrong) + '</td>';
+          '<td>' + progressBar2(wrong, fixed) + '</td>';
           /* hidden: '<td>' + r.untick + '</td>'  and  '<td>' + r.oldestPendingHours + '</td>' */
         tbody.appendChild(tr);
       });

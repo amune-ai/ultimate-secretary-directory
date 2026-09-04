@@ -347,12 +347,16 @@
     .pbar-fill { display: block; height: 100%; }
     .pbar-2 { background: #d32f2f; }            /* خطأ انجاز red = remainder */
     .pbar-2 .pbar-fill { background: #e69138; } /* تعديل yellow = fill */
-    /* Progres 1 — three segments over her total rows */
+    /* Progres 1 — three pipeline stages over her total rows */
     .pbar-3 { display: flex; background: #e3e6ea; }
     .pbar-3 .seg { height: 100%; }
     .seg-pending { background: #cfd4da; }   /* معلّق — grey */
     .seg-print   { background: #1e8e3e; }   /* طباعة (not yet أنجاز) — green */
     .seg-sent    { background: #000080; }   /* أنجاز — navy */
+    .pbar-nums { font-size: 10px; font-weight: 700; }
+    .pbar-nums .n-p { color: #888; }
+    .pbar-nums .n-g { color: #1e8e3e; }
+    .pbar-nums .n-s { color: #000080; }
     .pbar-empty { background: #e3e6ea; }
   </style>
 </head>
@@ -1014,25 +1018,31 @@
       return '<span class="pbar-cell"><span class="pbar-pct">' + label + '</span>' + bar + '</span>';
     }
 
-    // Progres 1 — three segments over (pending + طباعة): معلّق | طباعة | أنجاز.
-    // Left label is the pending %.
+    // Progres 1 — the pipeline معلّق -> طباعة -> أنجاز as three exclusive stages
+    // over her total rows. Label % = أنجاز / (معلّق + أنجاز).
+    //   done  = all طباعة'd rows (incl. the أنجاز ones)
+    //   green = done - sent  = طباعة'd but not yet أنجاز'd
     function progressBar1(pending, done, sent) {
-      var total = pending + done;
+      var green = Math.max(0, done - sent);
+      var total = pending + green + sent; // = pending + done
       if (!total) {
         return '<span class="pbar-cell"><span class="pbar-pct">—</span><div class="pbar pbar-empty"></div></span>';
       }
-      var pPct = Math.round(pending / total * 100);
-      var printPct = Math.max(0, Math.round((done - sent) / total * 100));
-      var sPct = Math.max(0, 100 - pPct - printPct);
-      var donePct = Math.round(sent / total * 100); // label: 100% when أنجاز fills the bar
-      var title = 'أنجاز ' + sent + ' / ' + total + ' (' + donePct + '%) · معلّق ' + pending + ' · طباعة ' + done;
+      var pW = Math.round(pending / total * 100);
+      var gW = Math.round(green / total * 100);
+      var sW = Math.max(0, 100 - pW - gW);
+      var base = pending + sent;
+      var pct = base ? Math.round(sent / base * 100) : 0;
+      var title = 'معلّق ' + pending + ' · طباعة ' + green + ' · أنجاز ' + sent + '  (' + pct + '%)';
       return '<span class="pbar-cell">' +
-        '<span class="pbar-pct">' + donePct + '%</span>' +
+        '<span class="pbar-pct">' + pct + '%</span>' +
         '<div class="pbar pbar-3" title="' + escapeAttr(title) + '">' +
-          '<span class="seg seg-pending" style="width:' + pPct + '%"></span>' +
-          '<span class="seg seg-print" style="width:' + printPct + '%"></span>' +
-          '<span class="seg seg-sent" style="width:' + sPct + '%"></span>' +
-        '</div></span>';
+          '<span class="seg seg-pending" style="width:' + pW + '%"></span>' +
+          '<span class="seg seg-print" style="width:' + gW + '%"></span>' +
+          '<span class="seg seg-sent" style="width:' + sW + '%"></span>' +
+        '</div>' +
+        '<span class="pbar-nums"><b class="n-p">' + pending + '</b>·<b class="n-g">' + green + '</b>·<b class="n-s">' + sent + '</b></span>' +
+        '</span>';
     }
 
     function renderSummary(res) {

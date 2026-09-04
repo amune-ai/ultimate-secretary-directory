@@ -14,7 +14,7 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
   var perSec = {};
   function bucket(name) {
     if (!perSec[name]) {
-      perSec[name] = { secretary: name, done: 0, sent: 0, untick: 0, wrong: 0, fixed: 0, oldestPendingHours: 0 };
+      perSec[name] = { secretary: name, pending: 0, done: 0, sent: 0, untick: 0, wrong: 0, fixed: 0, oldestPendingHours: 0 };
     }
     return perSec[name];
   }
@@ -62,8 +62,9 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
       if (mstate === 'wrong' || mstate === 'fixed') b.wrong++;
       if (mstate === 'fixed') b.fixed++;
 
-      // oldest still-pending (no طباعة yet)
+      // rows with no طباعة yet
       if (!isDone_(row[COL.DONE])) {
+        b.pending++;
         var t = asDate(row[COL.TIMESTAMP]);
         if (t) {
           var hrs = (now - t.getTime()) / 3600000;
@@ -76,7 +77,7 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
   return Object.keys(perSec).sort().map(function (k) {
     var b = perSec[k];
     return {
-      secretary: b.secretary, done: b.done, sent: b.sent, untick: b.untick,
+      secretary: b.secretary, pending: b.pending, done: b.done, sent: b.sent, untick: b.untick,
       wrong: b.wrong, fixed: b.fixed,
       oldestPendingHours: Math.round(b.oldestPendingHours * 10) / 10
     };

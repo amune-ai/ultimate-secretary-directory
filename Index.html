@@ -400,7 +400,7 @@
       <div id="summaryBody" class="table-scroll" hidden>
         <table class="data-table" id="summaryTable" aria-label="ملخص الأداء">
           <thead><tr>
-            <th>السكرتارية</th><th>طباعة</th><th>أنجاز</th>
+            <th>السكرتارية</th><th>Pending</th><th>طباعة</th><th>أنجاز</th>
             <th>خطأ انجاز</th><th>تعديل</th>
             <th>Progres 1</th><th>Progres 2</th>
             <!-- hidden for now (server still returns r.untick / r.oldestPendingHours):
@@ -1015,7 +1015,7 @@
       tbody.innerHTML = '';
       var rows = (res && res.rows) || [];
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">لا يوجد بيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-row">لا يوجد بيانات</td></tr>';
         return;
       }
       rows.forEach(function (r) {
@@ -1028,6 +1028,7 @@
         var tr = document.createElement('tr');
         tr.innerHTML =
           '<td>' + escapeHtml(r.secretary) + '</td>' +
+          '<td>' + (r.pending || 0) + '</td>' +
           '<td>' + r.done + '</td>' +
           '<td>' + r.sent + '</td>' +
           /* تراجع hidden: '<td>' + r.untick + '</td>' + */

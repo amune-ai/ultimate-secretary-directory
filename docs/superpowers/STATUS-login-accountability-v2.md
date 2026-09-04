@@ -36,7 +36,8 @@
   ("ملخص لكل سكرتارية") — collapsed by default (`+` / `−`, remembered per browser).
   All-time, all-3-tabs, no date filter. Per secretary, **credited to the row's
   سكرتارية** (looked up by the row's `Code`), not whoever clicked:
-  - **Visible columns:** السكرتارية | طباعة | أنجاز | خطأ انجاز | تعديل.
+  - **Visible columns:** السكرتارية | Pending | طباعة | أنجاز | خطأ انجاز | تعديل | Progres 1 | Progres 2.
+    Pending = her rows with no طباعة tick yet (all 3 tabs).
     طباعة/أنجاز = rows *currently* ticked (same predicate as the طباعة-section
     badges, summed over the 3 tabs); خطأ انجاز = rows ever flagged (col P);
     تعديل = of those, since fixed (col Q).

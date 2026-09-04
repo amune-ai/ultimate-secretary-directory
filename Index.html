@@ -1024,9 +1024,10 @@
       var pPct = Math.round(pending / total * 100);
       var printPct = Math.max(0, Math.round((done - sent) / total * 100));
       var sPct = Math.max(0, 100 - pPct - printPct);
-      var title = 'معلّق ' + pending + ' (' + pPct + '%) · طباعة ' + done + ' · أنجاز ' + sent;
+      var donePct = Math.round(sent / total * 100); // label: 100% when أنجاز fills the bar
+      var title = 'أنجاز ' + sent + ' / ' + total + ' (' + donePct + '%) · معلّق ' + pending + ' · طباعة ' + done;
       return '<span class="pbar-cell">' +
-        '<span class="pbar-pct">' + pPct + '%</span>' +
+        '<span class="pbar-pct">' + donePct + '%</span>' +
         '<div class="pbar pbar-3" title="' + escapeAttr(title) + '">' +
           '<span class="seg seg-pending" style="width:' + pPct + '%"></span>' +
           '<span class="seg seg-print" style="width:' + printPct + '%"></span>' +

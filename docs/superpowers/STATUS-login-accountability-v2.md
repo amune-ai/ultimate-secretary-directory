@@ -1,6 +1,6 @@
 # Login + Accountability — status
 
-**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@28**).
+**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@38**).
 `main` holds the full history. `git push` to back up to GitHub.
 
 ## Server files (Apps Script, concatenated into one scope by clasp)
@@ -44,6 +44,14 @@
   - **Hidden columns** (server still returns them — `<th>`/`<td>` commented in
     the markup): **تراجع** (lifetime un-tick event count) and
     **أقدم طلب معلّق (ساعات)** (age of the oldest row with no طباعة yet).
+  - **Progres 1** — 3-segment bar over her total rows, pipeline معلّق(grey) →
+    طباعة-not-yet-أنجاز(green) → أنجاز(navy), mirrored right-to-left (معلّق on
+    the right). Counts `p·g·s` shown next to the bar; % = أنجاز ÷ (معلّق+طباعة)
+    = أنجاز ÷ total. Layout: `[counts] [bar] [%]` (`.pbar-cell-rev`).
+  - **Progres 2** — same treatment: 2-segment bar خطأ‑انجاز(red, still
+    unfixed) → تعديل(yellow), mirrored right-to-left. % = تعديل ÷ خطأ انجاز
+    (unchanged math, only the layout matches Progres 1 now).
+  - Both bars: `denominator == 0` → empty grey bar, label "—".
 - Each tab shows **Pending** and **طباعة** (was "Done") tables. The طباعة column header
   reads طباعة in both. The طباعة table:
   - header badges: `طباعة N` (green), `أنجاز N` (navy), `خطأ انجاز N` (red = rows ever

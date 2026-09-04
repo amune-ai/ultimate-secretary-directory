@@ -193,3 +193,46 @@ admin runs `clasp deploy` and `git push`).
 
 `Summary.gs` no longer has `dateInTz_` (dead after the date filter was removed);
 `getAdminSummary` takes just `token`.
+
+---
+
+## Session 4 (2026-09-04) — Pending column + Progres 1/2 bars
+
+Production @28 → @38.
+
+- **`Pending` column** added to the summary table (right after السكرتارية):
+  her rows with no طباعة tick, summed across the 3 tabs. `aggregateSummary_`
+  now counts it in the same current-state pass as `done`/`sent`.
+
+- **Progres 1 and Progres 2** — two progress-bar columns, iterated live with
+  the admin through several formula/layout changes before landing:
+  1. First cut: Progres 1 = 2-colour bar, navy فill (أنجاز) over a green track
+     (طباعة), label = أنجاز/طباعة %. Progres 2 = yellow fill (تعديل) over red
+     track (خطأ انجاز), label = تعديل/خطأ انجاز %.
+  2. Reworked Progres 1 into the real pipeline the admin described:
+     **معلّق → طباعة (not yet أنجاز) → أنجاز** as three *exclusive* stages
+     (`green = done − sent`), because ticking أنجاز does not remove a row
+     from `done` — it was a common misreading corrected mid-session with a
+     worked example (10 pending → 2 done → 1 sent, table walkthrough).
+  3. Label formula for Progres 1 went through three iterations before
+     settling: `pending%` → `أنجاز/total%` → `أنجاز/(معلّق+أنجاز)%` →
+     **final: `أنجاز/(معلّق+طباعة)%` = أنجاز/total**, driven by the admin
+     asking "why is she at 90%?" and walking the ratio by hand each time.
+  4. Layout: swapped the % label and the `p·g·s` counts to opposite sides
+     of the bar (`.pbar-cell-rev`, `flex-direction: row-reverse`), and
+     mirrored the bar's internal segments right-to-left (معلّق on the right,
+     أنجاز on the left) to read naturally in the RTL page.
+  5. Progres 2 brought up to match: added its own `stillWrong·fixed` counts,
+     the same side-swap and right-to-left mirroring. Its % math (`تعديل ÷
+     خطأ انجاز`) didn't need to change — it removed the old generic
+     `progressBar()` helper in favour of a dedicated `progressBar2()`
+     mirroring `progressBar1()`'s structure.
+
+Final formulas:
+```
+Progres 1: green = max(0, done - sent); total = pending + green + sent
+           pct = round(sent / total * 100)
+Progres 2: stillWrong = max(0, wrong - fixed)
+           pct = round(fixed / wrong * 100)
+```
+Both: denominator 0 → empty grey bar, label "—".

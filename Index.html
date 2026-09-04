@@ -1032,8 +1032,8 @@
       var pW = Math.round(pending / total * 100);
       var gW = Math.round(green / total * 100);
       var sW = Math.max(0, 100 - pW - gW);
-      var base = pending + sent;
-      var pct = base ? Math.round(sent / base * 100) : 0;
+      // % = أنجاز / (معلّق + طباعة)  — طباعة here is the full done count (pending + done = total)
+      var pct = Math.round(sent / total * 100);
       var title = 'معلّق ' + pending + ' · طباعة ' + green + ' · أنجاز ' + sent + '  (' + pct + '%)';
       return '<span class="pbar-cell pbar-cell-rev">' +
         '<span class="pbar-pct">' + pct + '%</span>' +

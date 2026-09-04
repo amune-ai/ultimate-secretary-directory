@@ -345,10 +345,14 @@
       display: inline-block; vertical-align: middle;
     }
     .pbar-fill { display: block; height: 100%; }
-    .pbar-1 { background: #1e8e3e; }            /* طباعة green = remainder */
-    .pbar-1 .pbar-fill { background: #000080; } /* أنجاز navy = fill */
     .pbar-2 { background: #d32f2f; }            /* خطأ انجاز red = remainder */
     .pbar-2 .pbar-fill { background: #e69138; } /* تعديل yellow = fill */
+    /* Progres 1 — three segments over her total rows */
+    .pbar-3 { display: flex; background: #e3e6ea; }
+    .pbar-3 .seg { height: 100%; }
+    .seg-pending { background: #cfd4da; }   /* معلّق — grey */
+    .seg-print   { background: #1e8e3e; }   /* طباعة (not yet أنجاز) — green */
+    .seg-sent    { background: #000080; }   /* أنجاز — navy */
     .pbar-empty { background: #e3e6ea; }
   </style>
 </head>
@@ -1000,7 +1004,7 @@
     }
 
     // A 2-colour bar: the track colour is the "remainder", the fill is the
-    // "done" part. denom 0 -> a grey empty bar.
+    // "done" part. denom 0 -> a grey empty bar. (Used by Progres 2.)
     function progressBar(cls, denom, pct, title) {
       var label = denom ? pct + '%' : '—';
       var bar = denom
@@ -1008,6 +1012,26 @@
           '<span class="pbar-fill" style="width:' + pct + '%"></span></div>'
         : '<div class="pbar pbar-empty" title="—"></div>';
       return '<span class="pbar-cell"><span class="pbar-pct">' + label + '</span>' + bar + '</span>';
+    }
+
+    // Progres 1 — three segments over (pending + طباعة): معلّق | طباعة | أنجاز.
+    // Left label is the pending %.
+    function progressBar1(pending, done, sent) {
+      var total = pending + done;
+      if (!total) {
+        return '<span class="pbar-cell"><span class="pbar-pct">—</span><div class="pbar pbar-empty"></div></span>';
+      }
+      var pPct = Math.round(pending / total * 100);
+      var printPct = Math.max(0, Math.round((done - sent) / total * 100));
+      var sPct = Math.max(0, 100 - pPct - printPct);
+      var title = 'معلّق ' + pending + ' (' + pPct + '%) · طباعة ' + done + ' · أنجاز ' + sent;
+      return '<span class="pbar-cell">' +
+        '<span class="pbar-pct">' + pPct + '%</span>' +
+        '<div class="pbar pbar-3" title="' + escapeAttr(title) + '">' +
+          '<span class="seg seg-pending" style="width:' + pPct + '%"></span>' +
+          '<span class="seg seg-print" style="width:' + printPct + '%"></span>' +
+          '<span class="seg seg-sent" style="width:' + sPct + '%"></span>' +
+        '</div></span>';
     }
 
     function renderSummary(res) {
@@ -1021,9 +1045,7 @@
       rows.forEach(function (r) {
         var wrong = r.wrong || 0;
         var fixed = r.fixed || 0;
-        // Progres 1 = أنجاز as % of طباعة (navy fill over green track).
         // Progres 2 = تعديل as % of خطأ انجاز (yellow fill over red track).
-        var p1 = r.done > 0 ? Math.round(r.sent / r.done * 100) : 0;
         var p2 = wrong > 0 ? Math.round(fixed / wrong * 100) : 0;
         var tr = document.createElement('tr');
         tr.innerHTML =
@@ -1034,7 +1056,7 @@
           /* تراجع hidden: '<td>' + r.untick + '</td>' + */
           '<td' + (wrong > 0 ? ' style="color:#d32f2f;font-weight:700"' : '') + '>' + wrong + '</td>' +
           '<td' + (fixed > 0 ? ' style="color:#e69138;font-weight:700"' : '') + '>' + fixed + '</td>' +
-          '<td>' + progressBar('pbar-1', r.done, p1, 'أنجاز ' + r.sent + ' / طباعة ' + r.done) + '</td>' +
+          '<td>' + progressBar1(r.pending || 0, r.done, r.sent) + '</td>' +
           '<td>' + progressBar('pbar-2', wrong, p2, 'تعديل ' + fixed + ' / خطأ انجاز ' + wrong) + '</td>';
           /* hidden: '<td>' + r.untick + '</td>'  and  '<td>' + r.oldestPendingHours + '</td>' */
         tbody.appendChild(tr);

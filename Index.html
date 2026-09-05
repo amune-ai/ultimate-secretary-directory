@@ -314,6 +314,9 @@
     .login-card button:disabled { opacity: 0.6; cursor: default; }
     .login-error { margin: 0; color: #b3261e; font-size: 13px; }
     .whoami { font-size: 12px; color: #666; margin-inline-start: 8px; }
+    .my-progress { display: inline-flex; align-items: center; gap: 16px; margin-inline-start: 12px; }
+    .mp-item { display: inline-flex; align-items: center; gap: 6px; direction: ltr; }
+    .mp-lbl { font-size: 11px; font-weight: 700; color: #666; }
     .logout-btn {
       border: 1px solid var(--border); background: #fff; color: #444;
       border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
@@ -394,6 +397,7 @@
         <h1>المباشرات والمرضيات والإجازات الي تم تحميلها على الموقع</h1>
         <span id="whoami" class="whoami"></span>
         <button id="logoutBtn" class="logout-btn" type="button">خروج</button>
+        <span id="myProgress" class="my-progress"></span>
       </div>
       <div class="filter-box">
         <label for="secretariatFilter">سكرتارية:</label>
@@ -789,6 +793,7 @@
           .withSuccessHandler(function (updated) {
             updateLocalModifyState(msheet, mcode, updated.modify);
             renderTable();
+            renderMyProgress();
             refreshSummaryIfAdmin();
           })
           .withFailureHandler(function (err) {
@@ -851,6 +856,7 @@
         .withSuccessHandler(function (updated) {
           updateLocalTickState(sheetName, code, updated);
           renderTable();
+          renderMyProgress();
           refreshSummaryIfAdmin();
         })
         .withFailureHandler(function (err) {
@@ -983,6 +989,7 @@
           renderNav();
           renderTable();
           setLastUpdated();
+          renderMyProgress();
           if (SESSION.role === 'admin' && typeof loadSummary === 'function') loadSummary();
         })
         .withFailureHandler(function (err) {
@@ -1001,6 +1008,26 @@
 
     function refreshSummaryIfAdmin() {
       if (SESSION.role === 'admin' && typeof loadSummary === 'function') loadSummary();
+    }
+
+    // For a logged-in secretary: her own Progres 1 + 2 bars in the toolbar,
+    // computed from her (already scoped) TABS_DATA. Admin uses the full panel.
+    function renderMyProgress() {
+      var el = document.getElementById('myProgress');
+      if (!el) return;
+      if (SESSION.role === 'admin') { el.innerHTML = ''; return; }
+      var pending = 0, done = 0, sent = 0, wrong = 0, fixed = 0;
+      Object.keys(TABS_DATA).forEach(function (name) {
+        (TABS_DATA[name] || []).forEach(function (row) {
+          if (row.done) done++; else pending++;
+          if (row.sent) sent++;
+          if (row.modify === 'wrong' || row.modify === 'fixed') wrong++;
+          if (row.modify === 'fixed') fixed++;
+        });
+      });
+      el.innerHTML =
+        '<span class="mp-item"><span class="mp-lbl">Progres 1</span>' + progressBar1(pending, done, sent) + '</span>' +
+        '<span class="mp-item"><span class="mp-lbl">Progres 2</span>' + progressBar2(wrong, fixed) + '</span>';
     }
 
     function loadSummary() {

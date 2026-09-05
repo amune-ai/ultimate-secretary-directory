@@ -1,6 +1,6 @@
 # Login + Accountability — status
 
-**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@38**).
+**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@47**).
 `main` holds the full history. `git push` to back up to GitHub.
 
 ## Server files (Apps Script, concatenated into one scope by clasp)
@@ -30,8 +30,13 @@
 
 ## Client (`Index.html`) — current behaviour
 - Login form; session remembered in `localStorage.usd_token`.
-- Secretary: sees only her own rows across the 3 tabs, no سكرتارية filter, تعديل button
-  disabled (view-only).
+- **Toolbar** (3 zones): page title on the right · centre group = ⟳ refresh +
+  bold 14px logged-in name + (admin) the سكرتارية filter + (secretary) her own
+  Progres 1 & 2 bars · far left = "آخر تحديث HH:MM" then the red-`#a64d79`
+  **خروج** button.
+- Secretary: sees only her own rows across the 3 tabs, تعديل button disabled
+  (view-only), and gets her own **Progres 1 + 2** bars in the toolbar
+  (recomputed locally from her scoped `TABS_DATA` on every tick — no round-trip).
 - Admin: all rows, filter dropdown, and a collapsible **summary panel**
   ("ملخص لكل سكرتارية") — collapsed by default (`+` / `−`, remembered per browser).
   All-time, all-3-tabs, no date filter. Per secretary, **credited to the row's

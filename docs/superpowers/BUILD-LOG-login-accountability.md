@@ -236,3 +236,31 @@ Progres 2: stillWrong = max(0, wrong - fixed)
            pct = round(fixed / wrong * 100)
 ```
 Both: denominator 0 → empty grey bar, label "—".
+
+---
+
+## Session 5 (2026-09-04 → 09-06) — secretary Progres bars + toolbar layout
+
+Production @38 → @47.
+
+- **Secretary Progres bars.** After a secretary logs in, her own **Progres 1**
+  and **Progres 2** bars render in the toolbar (`#myProgress`, right of the
+  خروج button originally). Computed client-side in `renderMyProgress()` from
+  her already-scoped `TABS_DATA` — no server call — and refreshed on every
+  tick alongside `renderTable()`. Admins get `''` there (they have the full
+  panel). Reuses the same `progressBar1` / `progressBar2` renderers.
+- **خروج button** made a filled coloured button: red → then `#a64d79`
+  (hover `#8c3f66`).
+- **Toolbar restructured** into three flex zones inside `.toolbar-left`
+  (`flex: 1`): `.tb-right` (title), `.tb-center` (`margin-inline: auto`),
+  and the trailing خروج button. Several rounds of moving pieces around per
+  the admin's eye:
+  - name + progress bars centred; خروج pushed to the far left.
+  - ⟳ refresh button: first parked next to خروج, then moved into `.tb-center`
+    right beside the name (unused `.tb-left` rule dropped).
+  - logged-in name (`#whoami`) bolded to 14px / `#333` (id-scoped so the
+    `.whoami`-classed "آخر تحديث" text is untouched).
+  - "آخر تحديث HH:MM" moved out of `.tb-right` to sit just before خروج.
+  - the **سكرتارية** filter (`.filter-box`) moved out of `.toolbar` into
+    `.tb-center`, right after the admin's name (still `display:none` for
+    secretaries via `enterDashboard`).

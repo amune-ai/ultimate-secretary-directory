@@ -42,7 +42,12 @@
       gap: 12px;
       flex: 1;
     }
-    .search-bar { margin-bottom: 12px; text-align: center; }
+    .tab-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .tab-row .tab-nav { margin-bottom: 0; }
+    .search-bar { margin-bottom: 0; }
     #rowSearch {
       width: 280px; max-width: 100%; padding: 8px 12px;
       border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
@@ -421,9 +426,11 @@
         <button id="logoutBtn" class="logout-btn" type="button">خروج</button>
       </div>
     </div>
-    <div id="tabNav" class="tab-nav"></div>
-    <div class="search-bar">
-      <input id="rowSearch" type="search" placeholder="بحث في الجداول…" aria-label="بحث في الجداول">
+    <div class="tab-row">
+      <div id="tabNav" class="tab-nav"></div>
+      <div class="search-bar">
+        <input id="rowSearch" type="search" placeholder="بحث في الجداول…" aria-label="بحث في الجداول">
+      </div>
     </div>
     <div id="summaryPanel" class="summary-panel" hidden>
       <div class="summary-head">

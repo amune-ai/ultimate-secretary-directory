@@ -264,3 +264,21 @@ Production @38 → @47.
   - the **سكرتارية** filter (`.filter-box`) moved out of `.toolbar` into
     `.tb-center`, right after the admin's name (still `display:none` for
     secretaries via `enterDashboard`).
+
+---
+
+## Session 6 (2026-09-06) — table search box
+
+Production @47 → @53.
+
+- **`#rowSearch`** free-text box added. `renderTable()` filters `allRows`
+  (already scoped + سكرتارية-filtered) by a case-insensitive substring match
+  against every `cells[]` value or the row's `code`, before the
+  Pending / طباعة split — so one box filters both tables, for admin and
+  secretary alike. `input` handler sets `rowSearchValue`, zeroes `donePage`,
+  re-renders. No server call.
+- Placement bikeshed (5 moves): below the toolbar → centred there →
+  "بحث في الجدول" → "بحث في الجداول" → below the tab nav → onto the tab row
+  opposite the tabs → centred on the tab row → **final: right after the
+  last tab (إعلام عودة uploads), `gap: 12px`**, inside a new `.tab-row`
+  flex wrapper.

@@ -1,6 +1,6 @@
 # Login + Accountability — status
 
-**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@47**).
+**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@53**).
 `main` holds the full history. `git push` to back up to GitHub.
 
 ## Server files (Apps Script, concatenated into one scope by clasp)
@@ -37,6 +37,10 @@
 - Secretary: sees only her own rows across the 3 tabs, تعديل button disabled
   (view-only), and gets her own **Progres 1 + 2** bars in the toolbar
   (recomputed locally from her scoped `TABS_DATA` on every tick — no round-trip).
+- **Table search** (`#rowSearch`, both roles): on the tab row, right after the
+  "إعلام عودة uploads" tab. Free-text, live-filters *both* the Pending and طباعة
+  tables — matches any cell or the row's `Code`, case-insensitive; resets the
+  طباعة pager to page 1. Client-side over the already-scoped `TABS_DATA`.
 - Admin: all rows, filter dropdown, and a collapsible **summary panel**
   ("ملخص لكل سكرتارية") — collapsed by default (`+` / `−`, remembered per browser).
   All-time, all-3-tabs, no date filter. Per secretary, **credited to the row's

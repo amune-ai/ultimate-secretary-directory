@@ -42,6 +42,11 @@
       gap: 12px;
       flex: 1;
     }
+    .search-bar { margin-bottom: 12px; }
+    #rowSearch {
+      width: 280px; max-width: 100%; padding: 8px 12px;
+      border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+    }
     .tb-right { display: inline-flex; align-items: center; gap: 10px; }
     .tb-center { display: inline-flex; align-items: center; gap: 12px; margin-inline: auto; }
     .refresh-btn {
@@ -416,6 +421,9 @@
         <button id="logoutBtn" class="logout-btn" type="button">خروج</button>
       </div>
     </div>
+    <div class="search-bar">
+      <input id="rowSearch" type="search" placeholder="بحث في الجدول…" aria-label="بحث في الجدول">
+    </div>
     <div id="tabNav" class="tab-nav"></div>
     <div id="summaryPanel" class="summary-panel" hidden>
       <div class="summary-head">
@@ -447,6 +455,7 @@
     var TABS_DATA = {};
 
     var activeIndex = 0;
+    var rowSearchValue = '';       // free-text filter over both tables' cells
     var donePage = 0;              // pagination position in the طباعة (Done) table
     var DONE_DAYS_PER_PAGE = 3;    // how many calendar days of requests per page
     var secretariatFilterValue = '';
@@ -731,6 +740,12 @@
       if (secretariatFilterValue) {
         allRows = allRows.filter(function (row) { return row.cells[SECRETARIAT_COLUMN_INDEX] === secretariatFilterValue; });
       }
+      if (rowSearchValue) {
+        allRows = allRows.filter(function (row) {
+          if (String(row.code).toLowerCase().indexOf(rowSearchValue) !== -1) return true;
+          return row.cells.some(function (c) { return String(c).toLowerCase().indexOf(rowSearchValue) !== -1; });
+        });
+      }
 
       var pendingRows = allRows.filter(function (row) { return !row.done; });
       var doneRows = allRows.filter(function (row) { return row.done; });
@@ -894,6 +909,12 @@
     }
 
     document.getElementById('refreshBtn').addEventListener('click', refreshData);
+
+    document.getElementById('rowSearch').addEventListener('input', function () {
+      rowSearchValue = this.value.trim().toLowerCase();
+      donePage = 0;
+      renderTable();
+    });
 
     var SESSION = { token: null, name: null, role: null };
 

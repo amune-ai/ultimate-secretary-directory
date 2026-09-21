@@ -301,6 +301,14 @@
     tr.row-modify-fixed .id-cell { color: #e69138 !important; border-bottom-color: #e69138; }
     tr.row-modify-fixed .pdf-link { color: #e69138 !important; }
     @keyframes modblink { 50% { opacity: 0.4; } }
+    /* مسح (page 2 admin-only soft-hide): dims the row for admin. Secretaries
+       never receive erased rows at all, so this class only ever applies
+       in the admin's own view. */
+    .tick-checkbox-erase {
+      width: 17px; height: 17px; cursor: pointer; accent-color: #757575;
+    }
+    tr.row-erased td { color: #aaa !important; }
+    tr.row-erased .id-cell { color: #aaa !important; border-bottom-color: #aaa; }
     .banner {
       padding: 12px 16px; margin-bottom: 16px; border-radius: 8px;
       font-size: 14px; cursor: pointer;
@@ -327,7 +335,7 @@
     .login-card button:disabled { opacity: 0.6; cursor: default; }
     .login-error { margin: 0; color: #b3261e; font-size: 13px; }
     .whoami { font-size: 12px; color: #666; margin-inline-start: 8px; }
-    #whoami { font-size: 14px; font-weight: 700; color: #333; }
+    #whoami, #whoami2 { font-size: 14px; font-weight: 700; color: #333; }
     .my-progress { display: inline-flex; align-items: center; gap: 16px; margin-inline-start: 12px; }
     .mp-item { display: inline-flex; align-items: center; gap: 6px; direction: ltr; }
     .mp-lbl { font-size: 11px; font-weight: 700; color: #666; }
@@ -337,6 +345,12 @@
       transition: background 0.15s ease;
     }
     .logout-btn:hover { background: #8c3f66; border-color: #8c3f66; }
+    .switch-btn {
+      border: 1px solid #006391; background: #006391; color: #fff;
+      border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .switch-btn:hover { background: #004d6e; border-color: #004d6e; }
     .summary-panel {
       background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
       margin-bottom: 16px; overflow: hidden;
@@ -402,6 +416,7 @@
   </div>
 
   <div id="app" hidden>
+    <div id="page1">
     <div class="toolbar">
       <div class="toolbar-left">
         <span class="tb-right">
@@ -423,6 +438,7 @@
           <span id="myProgress" class="my-progress"></span>
         </span>
         <span id="lastUpdated" class="whoami"></span>
+        <button id="gotoPage2Btn" class="switch-btn" type="button">استفسارات</button>
         <button id="logoutBtn" class="logout-btn" type="button">خروج</button>
       </div>
     </div>
@@ -454,6 +470,59 @@
       </div>
     </div>
     <div id="tableWrap" class="table-wrap"></div>
+    </div>
+
+    <div id="page2" hidden>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="tb-right">
+          <h1>استفسارات و طلبات الأطباء</h1>
+        </span>
+        <span class="tb-center">
+          <button id="refreshBtn2" class="refresh-btn" title="Refresh data" aria-label="Refresh data">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+          </button>
+          <span id="whoami2" class="whoami"></span>
+          <div class="filter-box">
+            <label for="secretariatFilter2">سكرتارية:</label>
+            <select id="secretariatFilter2">
+              <option value="">All</option>
+            </select>
+          </div>
+          <span id="myProgress2" class="my-progress"></span>
+        </span>
+        <span id="lastUpdated2" class="whoami"></span>
+        <button id="gotoPage1Btn" class="switch-btn" type="button">المستندات</button>
+        <button id="logoutBtn2" class="logout-btn" type="button">خروج</button>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div id="tabNav2" class="tab-nav"></div>
+      <div class="search-bar">
+        <input id="rowSearch2" type="search" placeholder="بحث في الجداول…" aria-label="بحث في الجداول">
+      </div>
+    </div>
+    <div id="summaryPanel2" class="summary-panel" hidden>
+      <div class="summary-head">
+        <span class="summary-head-left">
+          <button id="summaryToggle2" class="summary-toggle" type="button" aria-label="طي أو عرض الجدول">+</button>
+          <strong>ملخص لكل سكرتارية</strong>
+        </span>
+      </div>
+      <div id="summaryBody2" class="table-scroll" hidden>
+        <table class="data-table" id="summaryTable2" aria-label="ملخص الأداء">
+          <thead><tr>
+            <th>السكرتارية</th><th>Pending</th><th>استلام</th>
+            <th>Progres 1</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="tableWrap2" class="table-wrap"></div>
+    </div>
   </div>
 
   <script>
@@ -623,49 +692,76 @@
     // (.table-scroll, see CSS) scrolls internally rather than hiding rows.
     // showSentColumn controls whether the "أنجاز" header + checkbox render
     // at all — it's only shown in the Done table (table 2), not Pending.
-    function buildTableMarkup(tab, rows, emptyMessage, showSentColumn) {
-      // Pending drops the last two headers (أنجاز, تعديل); the طباعة table keeps all.
-      var headers = showSentColumn ? COLUMN_HEADERS : COLUMN_HEADERS.slice(0, COLUMN_HEADERS.length - 2);
+    // allHeaders/hasPdf let page 2 reuse this with its own column set (no PDF
+    // column); both default to page 1's, so existing callers are unaffected.
+    // showEraseColumn appends the page-2-admin-only "مسح" tick column.
+    // showModifyColumn (default true) can drop just the trailing تعديل column
+    // while keeping أنجاز, for a Done table that doesn't want it at all.
+    function buildTableMarkup(tab, rows, emptyMessage, showSentColumn, allHeaders, hasPdf, showEraseColumn, showModifyColumn) {
+      allHeaders = allHeaders || COLUMN_HEADERS;
+      hasPdf = hasPdf === undefined ? true : hasPdf;
+      showModifyColumn = showModifyColumn === undefined ? true : showModifyColumn;
+      // Pending drops the last two headers (أنجاز, تعديل); the طباعة table keeps
+      // all, unless showModifyColumn is off, in which case it drops just تعديل.
+      var headers = allHeaders;
+      if (!showSentColumn) {
+        headers = headers.slice(0, headers.length - 2);
+      } else if (!showModifyColumn) {
+        headers = headers.slice(0, headers.length - 1);
+      }
       var isAdmin = (typeof SESSION !== 'undefined') && SESSION.role === 'admin';
+      var colCount = headers.length + (showEraseColumn ? 1 : 0);
 
       var html = '<table class="data-table" aria-label="' + escapeAttr(tab.label) + '"><thead><tr>';
       headers.forEach(function (h) {
         html += '<th style="background:' + tab.headerBg + ';color:' + tab.headerColor + ';">' + escapeHtml(h) + '</th>';
       });
+      if (showEraseColumn) {
+        html += '<th style="background:' + tab.headerBg + ';color:' + tab.headerColor + ';">مسح</th>';
+      }
       html += '</tr></thead><tbody>';
 
       if (rows.length === 0) {
-        html += '<tr><td colspan="' + headers.length + '" class="empty-row">' + emptyMessage + '</td></tr>';
+        html += '<tr><td colspan="' + colCount + '" class="empty-row">' + emptyMessage + '</td></tr>';
       } else {
         rows.forEach(function (row) {
           var cells = row.cells;
           var modifyClass = row.modify === 'wrong' ? 'row-modify-wrong'
                           : (row.modify === 'fixed' ? 'row-modify-fixed' : '');
-          var rowClasses = [row.done ? 'row-done' : '', row.sent ? 'row-sent' : '', modifyClass].filter(Boolean).join(' ');
+          var rowClasses = [row.done ? 'row-done' : '', row.sent ? 'row-sent' : '', modifyClass, row.erased ? 'row-erased' : '']
+            .filter(Boolean).join(' ');
           var noCode = !row.code;
           html += '<tr class="' + rowClasses + '" data-sheet-row="' + row.sheetRow +
                   '" data-code="' + escapeAttr(row.code || '') + '">';
-          // Last cell is always "PDF Links" (rendered as the paper icon below);
-          // the ID column is a click-to-copy cell; everything else is plain text.
-          for (var c = 0; c < cells.length - 1; c++) {
+          // When hasPdf, the last cell is "PDF Links" (rendered as the paper
+          // icon below) and is excluded from the plain-text loop; otherwise
+          // every cell is plain text. The ID column is a click-to-copy cell.
+          var loopEnd = hasPdf ? cells.length - 1 : cells.length;
+          for (var c = 0; c < loopEnd; c++) {
             if (c === ID_COLUMN_INDEX) {
               html += '<td><span class="id-cell" data-copy="' + escapeAttr(cells[c]) + '" title="Click to copy">' + escapeHtml(cells[c]) + '</span></td>';
             } else {
               html += '<td>' + escapeHtml(cells[c]) + '</td>';
             }
           }
-          html += '<td class="pdf-cell">' + pdfIconCell(cells[cells.length - 1]) + '</td>';
+          if (hasPdf) html += '<td class="pdf-cell">' + pdfIconCell(cells[cells.length - 1]) + '</td>';
           html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox" aria-label="تحديد كمنجز" ' +
                   (row.done ? 'checked ' : '') + (noCode ? 'disabled title="لا يمكن التتبع: لا يوجد Code" ' : '') + '/></td>';
           if (showSentColumn) {
             html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox-sent" aria-label="تحديد أنجاز" ' +
                     (row.sent ? 'checked ' : '') + (noCode ? 'disabled title="لا يمكن التتبع: لا يوجد Code" ' : '') + '/></td>';
-            var mState = row.modify || 'none';
-            var mGlyph = mState === 'wrong' ? '✕' : (mState === 'fixed' ? '✓' : '✎');
-            var mDisabled = noCode || !isAdmin;
-            var mTitle = noCode ? 'لا يمكن التتبع: لا يوجد Code' : (isAdmin ? 'تعديل' : 'للمشرف فقط');
-            html += '<td class="tick-cell"><button type="button" class="modify-btn modify-' + mState + '" ' +
-                    (mDisabled ? 'disabled ' : '') + 'title="' + mTitle + '" aria-label="تعديل">' + mGlyph + '</button></td>';
+            if (showModifyColumn) {
+              var mState = row.modify || 'none';
+              var mGlyph = mState === 'wrong' ? '✕' : (mState === 'fixed' ? '✓' : '✎');
+              var mDisabled = noCode || !isAdmin;
+              var mTitle = noCode ? 'لا يمكن التتبع: لا يوجد Code' : (isAdmin ? 'تعديل' : 'للمشرف فقط');
+              html += '<td class="tick-cell"><button type="button" class="modify-btn modify-' + mState + '" ' +
+                      (mDisabled ? 'disabled ' : '') + 'title="' + mTitle + '" aria-label="تعديل">' + mGlyph + '</button></td>';
+            }
+          }
+          if (showEraseColumn) {
+            html += '<td class="tick-cell"><input type="checkbox" class="tick-checkbox-erase" aria-label="مسح" ' +
+                    (row.erased ? 'checked ' : '') + '/></td>';
           }
           html += '</tr>';
         });
@@ -683,9 +779,9 @@
       var badgeNum = (opts.totalCount != null) ? opts.totalCount : rows.length;
       var badges;
       if (opts.sentCount != null) {
-        // done section: labelled badges — طباعة (green), أنجاز (navy),
+        // done section: labelled badges — طباعة/استلام (green), أنجاز (navy),
         // and (if provided) خطأ انجاز (red) + تعديل (amber)
-        badges = '<span class="count-badge count-badge-done">طباعة ' + badgeNum + '</span>' +
+        badges = '<span class="count-badge count-badge-done">' + (opts.doneLabel || 'طباعة') + ' ' + badgeNum + '</span>' +
                  ' <span class="count-badge count-badge-sent">أنجاز ' + opts.sentCount + '</span>';
         if (opts.wrongCount != null) {
           badges += ' <span class="count-badge count-badge-wrong">خطأ انجاز ' + opts.wrongCount + '</span>' +
@@ -696,14 +792,16 @@
       }
       return '<div class="table-section">' +
         '<div class="table-section-title">' + (title ? escapeHtml(title) + ' ' : '') + badges + '</div>' +
-        '<div class="table-scroll">' + buildTableMarkup(tab, rows, emptyMessage, showSentColumn) + '</div>' +
+        '<div class="table-scroll">' + buildTableMarkup(tab, rows, emptyMessage, showSentColumn, opts.headers, opts.hasPdf, opts.showEraseColumn, opts.showModifyColumn) + '</div>' +
         (opts.footerHtml || '') +
         '</div>';
     }
 
     // Splits done rows into pages of DONE_DAYS_PER_PAGE calendar days each
-    // (newest first). Returns { rows: <this page's rows>, pageCount, days: [...] }.
-    function paginateDoneByDay(doneRows) {
+    // (newest first). currentPage is clamped and returned as .page so the
+    // caller can write it back to its own donePage/donePage2 global.
+    // Returns { rows: <this page's rows>, pageCount, days: [...], page }.
+    function paginateDoneByDay(doneRows, currentPage) {
       var order = [];
       var seen = {};
       doneRows.forEach(function (r) {
@@ -711,24 +809,29 @@
         if (!seen[day]) { seen[day] = true; order.push(day); }
       });
       var pageCount = Math.max(1, Math.ceil(order.length / DONE_DAYS_PER_PAGE));
-      if (donePage >= pageCount) donePage = pageCount - 1;
-      if (donePage < 0) donePage = 0;
-      var pageDays = order.slice(donePage * DONE_DAYS_PER_PAGE, donePage * DONE_DAYS_PER_PAGE + DONE_DAYS_PER_PAGE);
+      if (currentPage >= pageCount) currentPage = pageCount - 1;
+      if (currentPage < 0) currentPage = 0;
+      var pageDays = order.slice(currentPage * DONE_DAYS_PER_PAGE, currentPage * DONE_DAYS_PER_PAGE + DONE_DAYS_PER_PAGE);
       var inPage = {};
       pageDays.forEach(function (d) { inPage[d] = true; });
       return {
         rows: doneRows.filter(function (r) { return inPage[String(r.cells[0] || '').slice(0, 10) || '—']; }),
         pageCount: pageCount,
-        days: pageDays
+        days: pageDays,
+        page: currentPage
       };
     }
 
-    function donePagerHtml(page) {
+    // attrName lets a page use two independent pagers (e.g. page 2's Pending
+    // table alongside its Done table) without their clicks colliding; it
+    // defaults to page 1's original attribute so existing callers are unaffected.
+    function donePagerHtml(page, currentPage, attrName) {
+      attrName = attrName || 'data-done-page';
       if (page.pageCount <= 1) return '';
       var out = '<div class="done-pager">';
       for (var i = 0; i < page.pageCount; i++) {
-        out += '<button class="pager-btn' + (i === donePage ? ' active' : '') +
-               '" data-done-page="' + i + '"' + (i === donePage ? ' disabled' : '') +
+        out += '<button class="pager-btn' + (i === currentPage ? ' active' : '') +
+               '" ' + attrName + '="' + i + '"' + (i === currentPage ? ' disabled' : '') +
                '>' + (i + 1) + '</button>';
       }
       return out + '</div>';
@@ -760,7 +863,8 @@
       var pendingEmpty = secretariatFilterValue ? 'No matching pending records' : 'No pending records';
       var doneEmpty = secretariatFilterValue ? 'No matching completed records' : 'No completed records yet';
 
-      var donePageInfo = paginateDoneByDay(doneRows);
+      var donePageInfo = paginateDoneByDay(doneRows, donePage);
+      donePage = donePageInfo.page;
       var doneSentCount = doneRows.filter(function (r) { return r.sent; }).length;
       // خطأ انجاز = every row ever flagged (col P set); تعديل = those since fixed (col Q set)
       var doneWrongCount = doneRows.filter(function (r) { return r.modify === 'wrong' || r.modify === 'fixed'; }).length;
@@ -774,7 +878,7 @@
           sentCount: doneSentCount,
           wrongCount: doneWrongCount,
           modifyCount: doneModifyCount,
-          footerHtml: donePagerHtml(donePageInfo)
+          footerHtml: donePagerHtml(donePageInfo, donePage)
         });
     }
 
@@ -996,7 +1100,7 @@
 
     function enterDashboard() {
       document.getElementById('whoami').textContent = SESSION.name || '';
-      var filterBox = document.querySelector('.filter-box');
+      var filterBox = document.querySelector('#page1 .filter-box');
       if (filterBox) filterBox.style.display = (SESSION.role === 'admin') ? '' : 'none';
       var summary = document.getElementById('summaryPanel');
       if (summary) summary.hidden = (SESSION.role !== 'admin');
@@ -1171,9 +1275,446 @@
       try { localStorage.setItem('usd_summary_collapsed', collapsed ? '1' : '0'); } catch (e) {}
     });
 
+    // ===================== Page 2 — استفسارات و طلبات الأطباء =====================
+    // Same login-scoped monitoring UI as page 1, reading the SecActions tab
+    // (getBootstrapData2/refreshTabsData2/setRowDone2/setRowSent2/setRowModify2/
+    // getAdminSummary2, Page2.js/Activity2.js/Summary2.js). No PDF column and no
+    // Code (rows are keyed by a server-computed Timestamp+ID string — same "code"
+    // shape as page 1 as far as this client is concerned). Config/headers are
+    // filled in from the first getBootstrapData2 response rather than embedded
+    // by the server template, since page 2 only loads after the user visits it.
+    var TABS_CONFIG2 = [];
+    var COLUMN_HEADERS2 = [];
+    var TABS_DATA2 = {};
+    var activeIndex2 = 0;
+    var rowSearchValue2 = '';
+    var donePage2 = 0;
+    var pendingPage2 = 0;
+    var secretariatFilterValue2 = '';
+    var page2Loaded = false;
+
+    var TICK_COLUMNS2 = {
+      'tick-checkbox': { field: 'done', rowClass: 'row-done', serverFn: 'setRowDone2' },
+      'tick-checkbox-sent': { field: 'sent', rowClass: 'row-sent', serverFn: 'setRowSent2' }
+    };
+
+    function setupSecretariatFilter2() {
+      var select = document.getElementById('secretariatFilter2');
+      select.addEventListener('change', function () {
+        secretariatFilterValue2 = select.value;
+        donePage2 = 0;
+        pendingPage2 = 0;
+        renderTable2();
+      });
+    }
+
+    function refreshSecretariatOptions2() {
+      var select = document.getElementById('secretariatFilter2');
+      var previousValue = select.value;
+
+      var seen = {};
+      Object.keys(TABS_DATA2).forEach(function (sheetName) {
+        (TABS_DATA2[sheetName] || []).forEach(function (row) {
+          var v = row.cells[SECRETARIAT_COLUMN_INDEX];
+          if (v) seen[v] = true;
+        });
+      });
+      var values = Object.keys(seen).sort(function (a, b) { return a.localeCompare(b, 'ar'); });
+
+      select.innerHTML = '<option value="">All</option>';
+      values.forEach(function (v) {
+        var opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        select.appendChild(opt);
+      });
+
+      if (values.indexOf(previousValue) !== -1) {
+        select.value = previousValue;
+        secretariatFilterValue2 = previousValue;
+      } else {
+        select.value = '';
+        secretariatFilterValue2 = '';
+      }
+    }
+
+    function renderNav2() {
+      var nav = document.getElementById('tabNav2');
+      nav.innerHTML = '';
+      TABS_CONFIG2.forEach(function (tab, i) {
+        var btn = document.createElement('button');
+        btn.className = 'tab-btn' + (i === activeIndex2 ? ' active' : '');
+        btn.textContent = tab.label;
+        btn.style.background = tab.headerBg;
+        btn.style.color = tab.headerColor;
+        btn.onclick = function () {
+          activeIndex2 = i;
+          donePage2 = 0;
+          pendingPage2 = 0;
+          renderNav2();
+          renderTable2();
+        };
+        nav.appendChild(btn);
+      });
+    }
+
+    function renderTable2() {
+      var tab = TABS_CONFIG2[activeIndex2];
+      if (!tab) { document.getElementById('tableWrap2').innerHTML = ''; return; }
+      var allRows = TABS_DATA2[tab.sheetName] || [];
+      if (secretariatFilterValue2) {
+        allRows = allRows.filter(function (row) { return row.cells[SECRETARIAT_COLUMN_INDEX] === secretariatFilterValue2; });
+      }
+      if (rowSearchValue2) {
+        allRows = allRows.filter(function (row) {
+          if (String(row.code).toLowerCase().indexOf(rowSearchValue2) !== -1) return true;
+          return row.cells.some(function (c) { return String(c).toLowerCase().indexOf(rowSearchValue2) !== -1; });
+        });
+      }
+
+      var pendingRows = allRows.filter(function (row) { return !row.done; });
+      var doneRows = allRows.filter(function (row) { return row.done; });
+
+      var pendingEmpty = secretariatFilterValue2 ? 'No matching pending records' : 'No pending records';
+      var doneEmpty = secretariatFilterValue2 ? 'No matching completed records' : 'No completed records yet';
+
+      var pendingPageInfo = paginateDoneByDay(pendingRows, pendingPage2);
+      pendingPage2 = pendingPageInfo.page;
+      var donePageInfo = paginateDoneByDay(doneRows, donePage2);
+      donePage2 = donePageInfo.page;
+      var doneSentCount = doneRows.filter(function (r) { return r.sent; }).length;
+      var doneWrongCount = doneRows.filter(function (r) { return r.modify === 'wrong' || r.modify === 'fixed'; }).length;
+      var doneModifyCount = doneRows.filter(function (r) { return r.modify === 'fixed'; }).length;
+
+      var wrap = document.getElementById('tableWrap2');
+      wrap.innerHTML =
+        buildSectionMarkup('Pending', tab, pendingPageInfo.rows, pendingEmpty, false, {
+          totalCount: pendingRows.length,
+          headers: COLUMN_HEADERS2,
+          hasPdf: false,
+          showEraseColumn: SESSION.role === 'admin',
+          footerHtml: donePagerHtml(pendingPageInfo, pendingPage2, 'data-pending-page')
+        }) +
+        buildSectionMarkup('', tab, donePageInfo.rows, doneEmpty, true, {
+          totalCount: doneRows.length,
+          sentCount: doneSentCount,
+          wrongCount: doneWrongCount,
+          modifyCount: doneModifyCount,
+          headers: COLUMN_HEADERS2,
+          hasPdf: false,
+          doneLabel: 'استلام',
+          showModifyColumn: false,
+          footerHtml: donePagerHtml(donePageInfo, donePage2)
+        });
+    }
+
+    function updateLocalTickState2(sheetName, code, updated) {
+      var rows = TABS_DATA2[sheetName] || [];
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].code) === String(code)) {
+          rows[i].done = updated.done;
+          rows[i].sent = updated.sent;
+          break;
+        }
+      }
+    }
+
+    function updateLocalModifyState2(sheetName, code, modify) {
+      var rows = TABS_DATA2[sheetName] || [];
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].code) === String(code)) { rows[i].modify = modify; break; }
+      }
+    }
+
+    function updateLocalErasedState2(sheetName, code, erased) {
+      var rows = TABS_DATA2[sheetName] || [];
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].code) === String(code)) { rows[i].erased = erased; break; }
+      }
+    }
+
+    document.getElementById('tableWrap2').addEventListener('click', function (e) {
+      var pagerBtn = e.target.closest('.pager-btn');
+      if (pagerBtn) {
+        if (!pagerBtn.disabled) {
+          if (pagerBtn.hasAttribute('data-pending-page')) {
+            pendingPage2 = Number(pagerBtn.getAttribute('data-pending-page'));
+          } else {
+            donePage2 = Number(pagerBtn.getAttribute('data-done-page'));
+          }
+          renderTable2();
+        }
+        return;
+      }
+      var modBtn = e.target.closest('.modify-btn');
+      if (modBtn) {
+        if (modBtn.disabled) return;
+        var mtr = modBtn.closest('tr');
+        var mcode = mtr.getAttribute('data-code');
+        var mrow = mtr.getAttribute('data-sheet-row');
+        var msheet = TABS_CONFIG2[activeIndex2].sheetName;
+        var cur = modBtn.classList.contains('modify-wrong') ? 'wrong'
+                : modBtn.classList.contains('modify-fixed') ? 'fixed' : 'none';
+        var next = cur === 'wrong' ? 'fixed' : 'wrong';
+        modBtn.disabled = true;
+        google.script.run
+          .withSuccessHandler(function (updated) {
+            updateLocalModifyState2(msheet, mcode, updated.modify);
+            renderTable2();
+            renderMyProgress2();
+            refreshSummaryIfAdmin2();
+          })
+          .withFailureHandler(function (err) {
+            modBtn.disabled = false;
+            var msg = (err && err.message) ? err.message : String(err);
+            if (String(msg).indexOf('AUTH') !== -1) {
+              try { localStorage.removeItem('usd_token'); } catch (x) {}
+              showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+            } else if (String(msg).indexOf('ADMIN_ONLY') !== -1) {
+              showBanner('هذا الإجراء للمشرف فقط.', 'error');
+            } else if (String(msg).indexOf('NOT_YOUR_ROW') !== -1) {
+              showBanner('لا يمكنك تعديل صف سكرتارية أخرى.', 'error');
+            } else if (/NOT_FOUND|AMBIGUOUS|NO_CODE/.test(String(msg))) {
+              showBanner('تعذّر تحديد الصف. اضغط تحديث ثم أعد المحاولة.', 'error');
+            } else {
+              showBanner('تعذّر الحفظ: ' + msg, 'error');
+            }
+          })
+          .setRowModify2(SESSION.token, msheet, mcode, Number(mrow), next);
+        return;
+      }
+      var idCell = e.target.closest('.id-cell');
+      if (idCell) {
+        copyIdToClipboard(idCell);
+      }
+    });
+
+    document.getElementById('tableWrap2').addEventListener('change', function (e) {
+      var eraseCheckbox = e.target.closest('.tick-checkbox-erase');
+      if (eraseCheckbox) {
+        var etr = eraseCheckbox.closest('tr');
+        var ecode = etr.getAttribute('data-code');
+        var erow = etr.getAttribute('data-sheet-row');
+        var esheet = TABS_CONFIG2[activeIndex2].sheetName;
+        var echecked = eraseCheckbox.checked;
+
+        etr.classList.toggle('row-erased', echecked);
+        eraseCheckbox.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function (updated) {
+            updateLocalErasedState2(esheet, ecode, updated.erased);
+            renderTable2();
+            refreshSummaryIfAdmin2();
+          })
+          .withFailureHandler(function (err) {
+            eraseCheckbox.disabled = false;
+            eraseCheckbox.checked = !echecked;
+            etr.classList.toggle('row-erased', !echecked);
+            var msg = (err && err.message) ? err.message : String(err);
+            if (String(msg).indexOf('AUTH') !== -1) {
+              try { localStorage.removeItem('usd_token'); } catch (e) {}
+              showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+            } else if (String(msg).indexOf('ADMIN_ONLY') !== -1) {
+              showBanner('هذا الإجراء للمشرف فقط.', 'error');
+            } else if (/NOT_FOUND|AMBIGUOUS|NO_CODE/.test(String(msg))) {
+              showBanner('تعذّر تحديد الصف. اضغط تحديث ثم أعد المحاولة.', 'error');
+            } else {
+              showBanner('تعذّر الحفظ: ' + msg, 'error');
+            }
+          })
+          .setRowErased2(SESSION.token, esheet, ecode, Number(erow), echecked);
+        return;
+      }
+
+      var checkbox = e.target.closest('.tick-checkbox, .tick-checkbox-sent');
+      if (!checkbox) return;
+
+      var config = TICK_COLUMNS2[checkbox.classList.contains('tick-checkbox-sent') ? 'tick-checkbox-sent' : 'tick-checkbox'];
+      var tr = checkbox.closest('tr');
+      var code = tr.getAttribute('data-code');
+      var sheetRow = tr.getAttribute('data-sheet-row');
+      var sheetName = TABS_CONFIG2[activeIndex2].sheetName;
+      var checked = checkbox.checked;
+
+      tr.classList.toggle(config.rowClass, checked);
+      checkbox.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function (updated) {
+          updateLocalTickState2(sheetName, code, updated);
+          renderTable2();
+          renderMyProgress2();
+          refreshSummaryIfAdmin2();
+        })
+        .withFailureHandler(function (err) {
+          checkbox.disabled = false;
+          checkbox.checked = !checked;
+          tr.classList.toggle(config.rowClass, !checked);
+          var msg = (err && err.message) ? err.message : String(err);
+          if (String(msg).indexOf('AUTH') !== -1) {
+            try { localStorage.removeItem('usd_token'); } catch (e) {}
+            showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+          } else if (String(msg).indexOf('NOT_YOUR_ROW') !== -1) {
+            showBanner('لا يمكنك تعديل صف سكرتارية أخرى.', 'error');
+          } else if (String(msg).indexOf('DONE_FIRST') !== -1) {
+            showBanner('حدد "استلام" أولاً قبل "أنجاز".', 'error');
+          } else if (/NOT_FOUND|AMBIGUOUS|NO_CODE/.test(String(msg))) {
+            showBanner('تعذّر تحديد الصف. اضغط تحديث ثم أعد المحاولة.', 'error');
+          } else {
+            showBanner('تعذّر الحفظ: ' + msg, 'error');
+          }
+        })[config.serverFn](SESSION.token, sheetName, code, Number(sheetRow), checked);
+    });
+
+    function refreshData2() {
+      if (!document.getElementById('refreshBtn2').classList.contains('spinning')) loadData2(false);
+    }
+    document.getElementById('refreshBtn2').addEventListener('click', refreshData2);
+
+    document.getElementById('rowSearch2').addEventListener('input', function () {
+      rowSearchValue2 = this.value.trim().toLowerCase();
+      donePage2 = 0;
+      pendingPage2 = 0;
+      renderTable2();
+    });
+
+    function setLastUpdated2() {
+      var el = document.getElementById('lastUpdated2');
+      if (!el) return;
+      var d = new Date();
+      var hh = ('0' + d.getHours()).slice(-2);
+      var mm = ('0' + d.getMinutes()).slice(-2);
+      el.textContent = 'آخر تحديث ' + hh + ':' + mm;
+    }
+
+    function renderMyProgress2() {
+      var el = document.getElementById('myProgress2');
+      if (!el) return;
+      if (SESSION.role === 'admin') { el.innerHTML = ''; return; }
+      var pending = 0, done = 0, sent = 0, wrong = 0, fixed = 0;
+      Object.keys(TABS_DATA2).forEach(function (name) {
+        (TABS_DATA2[name] || []).forEach(function (row) {
+          if (row.done) done++; else pending++;
+          if (row.sent) sent++;
+          if (row.modify === 'wrong' || row.modify === 'fixed') wrong++;
+          if (row.modify === 'fixed') fixed++;
+        });
+      });
+      el.innerHTML =
+        '<span class="mp-item"><span class="mp-lbl">Progres 1</span>' + progressBar1(pending, done, sent) + '</span>' +
+        '<span class="mp-item"><span class="mp-lbl">Progres 2</span>' + progressBar2(wrong, fixed) + '</span>';
+    }
+
+    function loadSummary2() {
+      google.script.run
+        .withSuccessHandler(renderSummary2)
+        .withFailureHandler(function (err) {
+          showBanner('تعذّر تحميل الملخص: ' + (err && err.message ? err.message : err), 'error');
+        })
+        .getAdminSummary2(SESSION.token);
+    }
+
+    function renderSummary2(res) {
+      var tbody = document.querySelector('#summaryTable2 tbody');
+      tbody.innerHTML = '';
+      var rows = (res && res.rows) || [];
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-row">لا يوجد بيانات</td></tr>';
+        return;
+      }
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escapeHtml(r.secretary) + '</td>' +
+          '<td>' + (r.pending || 0) + '</td>' +
+          '<td>' + r.done + '</td>' +
+          '<td>' + progressBar1(r.pending || 0, r.done, r.sent) + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function applySummaryCollapsed2() {
+      var collapsed = true;
+      try { collapsed = localStorage.getItem('usd_summary2_collapsed') !== '0'; } catch (e) {}
+      var body = document.getElementById('summaryBody2');
+      var btn = document.getElementById('summaryToggle2');
+      if (body) body.hidden = collapsed;
+      if (btn) btn.textContent = collapsed ? '+' : '−';
+    }
+    document.getElementById('summaryToggle2').addEventListener('click', function () {
+      var body = document.getElementById('summaryBody2');
+      var collapsed = !body.hidden;
+      body.hidden = collapsed;
+      this.textContent = collapsed ? '+' : '−';
+      try { localStorage.setItem('usd_summary2_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+    });
+
+    function refreshSummaryIfAdmin2() {
+      if (SESSION.role === 'admin') loadSummary2();
+    }
+
+    function loadData2(initial) {
+      var btn = document.getElementById('refreshBtn2');
+      btn.classList.add('spinning');
+      var runner = google.script.run
+        .withSuccessHandler(function (res) {
+          btn.classList.remove('spinning');
+          if (initial) {
+            TABS_CONFIG2 = (res && res.tabsConfig) || [];
+            COLUMN_HEADERS2 = (res && res.columnHeaders) || [];
+            TABS_DATA2 = (res && res.tabsData) ? res.tabsData : {};
+          } else {
+            TABS_DATA2 = res || {};
+          }
+          donePage2 = 0;
+          pendingPage2 = 0;
+          refreshSecretariatOptions2();
+          renderNav2();
+          renderTable2();
+          setLastUpdated2();
+          renderMyProgress2();
+          if (SESSION.role === 'admin') loadSummary2();
+        })
+        .withFailureHandler(function (err) {
+          btn.classList.remove('spinning');
+          var msg = (err && err.message) ? err.message : String(err);
+          if (String(msg).indexOf('AUTH') !== -1) {
+            try { localStorage.removeItem('usd_token'); } catch (e) {}
+            showLogin('انتهت الجلسة. سجّل الدخول من جديد.');
+          } else {
+            showBanner('تعذّر تحميل البيانات: ' + msg, 'error');
+          }
+        });
+      if (initial) runner.getBootstrapData2(SESSION.token);
+      else runner.refreshTabsData2(SESSION.token);
+    }
+
+    function enterPage2() {
+      document.getElementById('whoami2').textContent = SESSION.name || '';
+      var filterBox2 = document.querySelector('#page2 .filter-box');
+      if (filterBox2) filterBox2.style.display = (SESSION.role === 'admin') ? '' : 'none';
+      var summary2 = document.getElementById('summaryPanel2');
+      if (summary2) summary2.hidden = (SESSION.role !== 'admin');
+      applySummaryCollapsed2();
+      setupSecretariatFilter2();
+      loadData2(true);
+    }
+
+    document.getElementById('gotoPage2Btn').addEventListener('click', function () {
+      document.getElementById('page1').hidden = true;
+      document.getElementById('page2').hidden = false;
+      if (!page2Loaded) { page2Loaded = true; enterPage2(); }
+    });
+    document.getElementById('gotoPage1Btn').addEventListener('click', function () {
+      document.getElementById('page2').hidden = true;
+      document.getElementById('page1').hidden = false;
+    });
+    // ===================== end page 2 =====================
+
     tryResume();
 
-    document.getElementById('logoutBtn').addEventListener('click', function () {
+    function doLogout() {
       var t = SESSION.token;
       SESSION = { token: null, name: null, role: null };
       try { localStorage.removeItem('usd_token'); } catch (err) {}
@@ -1182,8 +1723,17 @@
       document.getElementById('tableWrap').innerHTML = '';
       var st = document.querySelector('#summaryTable tbody');
       if (st) st.innerHTML = '';
+      TABS_DATA2 = {};
+      page2Loaded = false;
+      document.getElementById('tableWrap2').innerHTML = '';
+      var st2 = document.querySelector('#summaryTable2 tbody');
+      if (st2) st2.innerHTML = '';
+      document.getElementById('page2').hidden = true;
+      document.getElementById('page1').hidden = false;
       showLogin();
-    });
+    }
+    document.getElementById('logoutBtn').addEventListener('click', doLogout);
+    document.getElementById('logoutBtn2').addEventListener('click', doLogout);
   </script>
 </body>
 </html>

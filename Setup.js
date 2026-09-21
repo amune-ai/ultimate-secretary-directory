@@ -14,7 +14,7 @@ function setup() {
   headerByCol[COL.MODIFY_WRONG] = 'ModifyWrong';
   headerByCol[COL.MODIFY_FIXED] = 'ModifyFixed';
 
-  TABS_CONFIG.forEach(function (tab) {
+  TABS_CONFIG.concat(TABS_CONFIG2).forEach(function (tab) {
     var sheet = ss.getSheetByName(tab.sheetName);
     if (!sheet) { Logger.log('setup: missing data sheet ' + tab.sheetName); return; }
     Object.keys(headerByCol).forEach(function (idx0) {
@@ -25,6 +25,18 @@ function setup() {
       }
     });
   });
+
+  // Page 2 (SecActions) has one more tracking column than page 1: مسح/Erased.
+  TABS_CONFIG2.forEach(function (tab) {
+    var sheet = ss.getSheetByName(tab.sheetName);
+    if (!sheet) return;
+    var cell = sheet.getRange(1, COL2.ERASED + 1);
+    if (String(cell.getValue()).trim() === '') {
+      cell.setValue('Erased');
+      Logger.log('setup: added header Erased to ' + tab.sheetName);
+    }
+  });
+
   Logger.log('setup: done');
 }
 

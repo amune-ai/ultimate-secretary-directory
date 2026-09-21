@@ -36,8 +36,12 @@ function aggregateSummary_(logRows, dataRowsBySheet) {
     });
   });
 
+  var known = {};
+  TABS_CONFIG.forEach(function (t) { known[t.sheetName] = true; });
+
   // تراجع — the only event-based column: count un-tick rows in ActivityLog.
   (logRows || []).forEach(function (r) {
+    if (!known[String(r[1] || '')]) return; // page-1 sheets only, not page 2's
     if (String(r[5] || '') === 'modify') return;
     if (String(r[7] == null ? '' : r[7]) !== '') return; // keep only un-ticks (newValue empty)
     var code = String(r[2] == null ? '' : r[2]).trim();

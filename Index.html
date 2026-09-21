@@ -351,6 +351,12 @@
       transition: background 0.15s ease;
     }
     .switch-btn:hover { background: #004d6e; border-color: #004d6e; }
+    .switch-btn-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; padding: 0 5px; margin-inline-start: 6px;
+      background: #fff; color: #006391; font-size: 11px; font-weight: 800;
+      border-radius: 9px; vertical-align: middle;
+    }
     .summary-panel {
       background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
       margin-bottom: 16px; overflow: hidden;
@@ -438,7 +444,7 @@
           <span id="myProgress" class="my-progress"></span>
         </span>
         <span id="lastUpdated" class="whoami"></span>
-        <button id="gotoPage2Btn" class="switch-btn" type="button">استفسارات</button>
+        <button id="gotoPage2Btn" class="switch-btn" type="button">استفسارات<span id="page2PendingBadge" class="switch-btn-badge" hidden>0</span></button>
         <button id="logoutBtn" class="logout-btn" type="button">خروج</button>
       </div>
     </div>
@@ -1130,6 +1136,11 @@
 
       setupSecretariatFilter();
       loadData(true);
+
+      // Eagerly load page 2 too (not just on first visit) so its pending
+      // count badge on the استفسارات button is accurate from the moment
+      // you log in, for both admin and secretary.
+      enterPage2();
     }
 
     function setLastUpdated() {
@@ -1313,7 +1324,6 @@
     var donePage2 = 0;
     var pendingPage2 = 0;
     var secretariatFilterValue2 = '';
-    var page2Loaded = false;
 
     var TICK_COLUMNS2 = {
       'tick-checkbox': { field: 'done', rowClass: 'row-done', serverFn: 'setRowDone2' },
@@ -1428,6 +1438,22 @@
           showModifyColumn: false,
           footerHtml: donePagerHtml(donePageInfo, donePage2)
         });
+
+      updatePage2PendingBadge();
+    }
+
+    // True total pending count across TABS_DATA2 (role-scoped by the server
+    // already), independent of whatever search/filter is currently applied
+    // to the visible table — this is what the استفسارات button badge shows.
+    function updatePage2PendingBadge() {
+      var badge = document.getElementById('page2PendingBadge');
+      if (!badge) return;
+      var total = 0;
+      Object.keys(TABS_DATA2).forEach(function (name) {
+        (TABS_DATA2[name] || []).forEach(function (row) { if (!row.done) total++; });
+      });
+      badge.textContent = total;
+      badge.hidden = total === 0;
     }
 
     function updateLocalTickState2(sheetName, code, updated) {
@@ -1726,7 +1752,8 @@
     document.getElementById('gotoPage2Btn').addEventListener('click', function () {
       document.getElementById('page1').hidden = true;
       document.getElementById('page2').hidden = false;
-      if (!page2Loaded) { page2Loaded = true; enterPage2(); }
+      // Data is already loaded eagerly at login (enterDashboard), so this
+      // is just a visibility toggle now.
     });
     document.getElementById('gotoPage1Btn').addEventListener('click', function () {
       document.getElementById('page2').hidden = true;
@@ -1747,10 +1774,11 @@
       var st = document.querySelector('#summaryTable tbody');
       if (st) st.innerHTML = '';
       TABS_DATA2 = {};
-      page2Loaded = false;
       document.getElementById('tableWrap2').innerHTML = '';
       var st2 = document.querySelector('#summaryTable2 tbody');
       if (st2) st2.innerHTML = '';
+      var badge2 = document.getElementById('page2PendingBadge');
+      if (badge2) { badge2.hidden = true; badge2.textContent = '0'; }
       document.getElementById('page2').hidden = true;
       document.getElementById('page1').hidden = false;
       showLogin();

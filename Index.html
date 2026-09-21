@@ -1029,6 +1029,26 @@
 
     var SESSION = { token: null, name: null, role: null };
 
+    // Keeps an open, idle tab logged in: the 8h session TTL only slides
+    // forward on an authenticated call, so a tab left open-but-untouched
+    // (page 1 or page 2, doesn't matter — one shared token) would otherwise
+    // still expire even though the user never actually logged out.
+    var KEEPALIVE_INTERVAL_MS = 20 * 60 * 1000; // 20 min
+    var keepAliveTimer = null;
+    function startKeepAlive() {
+      stopKeepAlive();
+      keepAliveTimer = setInterval(function () {
+        if (!SESSION.token) return;
+        google.script.run
+          .withSuccessHandler(function () {})
+          .withFailureHandler(function () {}) // transient network blip — next real action will surface a real expiry
+          .resumeSession(SESSION.token);
+      }, KEEPALIVE_INTERVAL_MS);
+    }
+    function stopKeepAlive() {
+      if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
+    }
+
     function showBanner(message, kind) {
       var b = document.getElementById('banner');
       b.textContent = message;
@@ -1041,6 +1061,7 @@
     document.getElementById('banner').addEventListener('click', clearBanner);
 
     function showLogin(msg) {
+      stopKeepAlive();
       document.getElementById('app').hidden = true;
       document.getElementById('loginView').hidden = false;
       var el = document.getElementById('loginError');
@@ -1051,6 +1072,7 @@
       document.getElementById('loginView').hidden = true;
       document.getElementById('app').hidden = false;
       enterDashboard(); // defined below; Task 11 fills the body
+      startKeepAlive();
     }
 
     document.getElementById('loginForm').addEventListener('submit', function (e) {
@@ -1715,6 +1737,7 @@
     tryResume();
 
     function doLogout() {
+      stopKeepAlive();
       var t = SESSION.token;
       SESSION = { token: null, name: null, role: null };
       try { localStorage.removeItem('usd_token'); } catch (err) {}

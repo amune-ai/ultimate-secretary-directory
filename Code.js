@@ -239,6 +239,14 @@ function syncDataFast() {
       destTab: "DocName",
       destRow: 1,
       destCol: 1
+    },
+    {
+      sourceId: "1Q_o6sQxCkP4J7pUlOvoK1Nuz-aCCKb4HjlBe3fz5sOg", // حصة  AI NoAnswers
+      sourceTab: "NoAnswers",
+      sourceRange: "A1:H",
+      destTab: "SecActions",
+      destRow: 1,
+      destCol: 1
     }
   ];
 

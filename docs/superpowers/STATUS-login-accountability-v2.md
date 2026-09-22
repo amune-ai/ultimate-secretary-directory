@@ -1,7 +1,13 @@
 # Login + Accountability — status
 
-**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@53**).
+**Live in production** (deployment `AKfycbxIiT5WV92N6ksIYc0xCRKtegLNPCZpC-ubAFKDFGVLsfd9h0I2QQ69w5wFdCFY8X8O`, currently **@56**).
 `main` holds the full history. `git push` to back up to GitHub.
+
+The app now has **two pages** inside the single `#app` div (`#page1` /
+`#page2`, shown/hidden via the `hidden` attribute), toggled by an
+"استفسارات" button in page 1's toolbar and a "المستندات" button in page 2's.
+See "Page 2" below for what it is, and Session 7 in the build log for how
+it was built.
 
 ## Server files (Apps Script, concatenated into one scope by clasp)
 - `Code.gs` — config (`ADMIN_USERNAME='a1'`, `LOGIN_SHEET`, `ACTIVITY_SHEET`, session/lockout
@@ -70,17 +76,75 @@
     ↔ **✓ Fixed** (`#e69138`, writes col Q; P kept). Logs a `modify` row each click.
 - Any tick (طباعة / أنجاز / تعديل) reloads the admin summary panel too.
 
+## Page 2 — استفسارات و طلبات الأطباء
+A second, parallel page (same login, same `#app`) reading a different sheet
+tab — `SecActions` — instead of the 3 upload tabs. Reachable from either
+page via the استفسارات / المستندات toggle buttons; loads eagerly at login
+(not lazily on first visit) so its pending-count badge on the استفسارات
+button is right immediately.
+
+- **Server**: `Page2.gs` (`TABS_CONFIG2`, `COL2`, `SHEET_COLUMN_COUNT2=18`,
+  `getBootstrapData2` / `refreshTabsData2`), `Activity2.gs` (`setRowDone2` /
+  `setRowSent2` / `setRowModify2` / `setRowErased2`), `Summary2.gs`
+  (`getAdminSummary2`) — all separate from page 1's endpoints, so page 1's
+  live code paths were never touched building this.
+- **No `Code` column** on `SecActions` (unlike the 3 upload tabs), so rows
+  are keyed by a synthetic `Timestamp|ID` string (`rowKey2_`) instead of a
+  stored value — recomputed live on every read/write. Collides only if two
+  rows share the exact same Timestamp *and* ID (same AMBIGUOUS fallback as
+  page 1's Code lookup).
+- **Sheet layout** (`SecActions`, A:R): A–D and G–H come from the
+  `syncDataFast()` sync job (Timestamp/Name/ID/Message/…/Center/السكرتارية);
+  J `استلام` (was طباعة), K أنجاز, L–O `DoneAt/DoneBy/SentAt/SentBy`, P/Q
+  `ModifyWrong/ModifyFixed` (تعديل — data still tracked, just hidden from
+  page 2's own UI, see below), **R `Erased`** (مسح, admin-only, see below).
+- **Table 1 (Pending/استفسارات)**: headers Timestamp/Name/ID/Center/
+  Message/السكرتارية/استلام, no PDF column. Paginated 3 calendar days per
+  page, same as page 1's Done table, with its own independent page counter.
+  Admin-only extra column **مسح**: ticking it dims the row grey for admin
+  (reversible) and — server-side, not just CSS — **excludes the row
+  entirely** from what a scoped (secretary) read returns, so the secretary
+  never sees it at all until admin unticks it.
+- **Table 2 (استلام)**: same headers + أنجاز, no تعديل column/button (hidden
+  per admin's request — the underlying `setRowModify2`/P·Q data still
+  exists, just no UI for it on page 2). Same day-based pagination as
+  table 1.
+- **Summary panel** ("ملخص لكل سكرتارية", admin-only): trimmed down to just
+  السكرتارية | Pending | استلام | Progres 1 (أنجاز, خطأ انجاز, تعديل, and
+  Progres 2 columns removed per admin's request — page 1's summary panel
+  still has all 8 columns, unchanged).
+- **استفسارات button pending badge**: white pill on the button showing the
+  true total pending count from `TABS_DATA2` (role-scoped server-side —
+  total for admin, own rows for a secretary), independent of whatever
+  search/filter is applied to the visible table.
+- **Blank-row bug (fixed)**: `SecActions` is synced from an open-ended
+  `"A1:H"` source range, which pulls the source sheet's full row extent
+  (~1000 rows, mostly blank) — a stray formatting/whitespace cell was
+  enough to look "non-empty" under the naive filter. Fixed by requiring a
+  real Timestamp *and* ID instead of "any of the 17(→18) columns non-empty".
+- **Session keep-alive**: added because a tab left open-but-idle for 8h+
+  (the session TTL) would correctly but annoyingly expire mid-work. Now
+  pings `resumeSession` every 20 min while logged in, on either page, so
+  only a genuinely closed/idle tab times out. Not page-2-specific — the two
+  pages share one token and one `requireSession_` code path throughout.
+
 ## Known ceilings (deliberate)
 - Plaintext passwords in the `Login` tab.
-- Sliding sessions, no absolute cap.
+- Sliding sessions, no absolute cap (mitigated by the keep-alive above, which
+  only prevents *premature* expiry of a tab still in use).
 - `setup` / `runTests` callable anonymously (idempotent / throwaway — low harm).
 - No `LockService` around tick writes (fine at ~6 users on distinct rows).
 - خطأ انجاز / تعديل count *rows* (col P/Q set), not per-occurrence re-flags — a per-time
   tally would come from the `ActivityLog` `modify` rows instead.
+- Page 2's `rowKey2_` (Timestamp+ID) collides on an exact duplicate pair —
+  degrades the same way a duplicate Code would on page 1.
 
 ## On the admin (not code)
 - Rotate the وضحة password in the `Login` tab (was exposed during debugging; scrubbed
   from git history but change it anyway).
 - Give each secretary their username + password.
 - A secretary seeing an empty dashboard = her `Login` `Name` doesn't exactly match the
-  سكرتارية column on her rows.
+  سكرتارية column on her rows (applies to `SecActions`' السكرتارية column too).
+- `SecActions` needs at least 18 columns (A:R) for page 2 to read it — run
+  `setup()` from the editor if it errors on load; `setup()` also stamps the
+  `Erased` header into R1 and the usual L:O/P:Q headers.

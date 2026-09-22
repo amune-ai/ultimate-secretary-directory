@@ -282,3 +282,103 @@ Production @47 → @53.
   opposite the tabs → centred on the tab row → **final: right after the
   last tab (إعلام عودة uploads), `gap: 12px`**, inside a new `.tab-row`
   flex wrapper.
+
+---
+
+## Session 7 (2026-09-22) — page 2: استفسارات و طلبات الأطباء
+
+Production @53 → @56. Same workflow throughout (agent edits + `clasp push`
+to `@HEAD`; admin tests, then runs `clasp deploy` and `git push`).
+
+### The ask
+
+A full second page, reachable after login for both admin and secretary,
+built from a different sheet tab (`SecActions`, filled by the standalone
+`syncDataFast()` job — see the `Code.js` diff at commit `6c66222`, done just
+before this session) instead of the 3 upload tabs. Same tick/سen/تعديل
+workflow, same accountability model, same admin summary — but no `Code`
+column and no PDF column on the source data, and initially scoped to 1 tab
+("المواضيع", `#006391`/white).
+
+### Architecture
+
+- **New server files, not edits to page 1's**: `Page2.js` / `Activity2.js`
+  / `Summary2.js`, mirroring `Code.js` / `Activity.js` / `Summary.js`
+  function-for-function under a `2` suffix. Zero risk to the live,
+  heavily-tested page 1 endpoints while building this.
+- **Row identity**: page 1's stable key is the immutable `Code` column;
+  `SecActions` has none. Used a synthetic `rowKey2_(row) = Timestamp + '|' +
+  ID.trim()`, recomputed on every read/write instead of stored — documented
+  as a ceiling (collides only on an exact Timestamp+ID duplicate, same
+  degradation as a duplicate Code).
+- **Shared client rendering helpers, generalized rather than duplicated**:
+  `buildTableMarkup` / `buildSectionMarkup` / `paginateDoneByDay` /
+  `donePagerHtml` all gained optional trailing parameters (headers array,
+  hasPdf, showEraseColumn, showModifyColumn, a pager `attrName`) with
+  defaults that exactly reproduce page 1's prior behavior — verified by
+  tracing through each default before touching any page-1 call site. Page
+  2's own state (`TABS_DATA2`, `activeIndex2`, `donePage2`, `pendingPage2`,
+  `secretariatFilterValue2`, `rowSearchValue2`) and thin glue
+  (`renderTable2`, `renderNav2`, its own `#tableWrap2` click/change
+  listeners, `loadData2`, `loadSummary2`) are separate, page-specific code —
+  duplicated on purpose since it's inherently page-specific wiring.
+- **Latent bug found and fixed while building this**: `Summary.js`'s
+  `aggregateSummary_` ActivityLog loop wasn't filtering by sheet name at
+  all — harmless while only page 1 wrote to `ActivityLog`, but would have
+  let page 2's `modify`/tick events bleed into page 1's admin summary
+  counts. Fixed on both `aggregateSummary_` and the new `aggregateSummary2_`
+  before page 2 started writing there.
+
+### Bugs found during testing
+
+- **"Infinite" pending rows on first test.** `SecActions`' blank-row filter
+  checked "any of the row's 17 columns non-empty" — too loose, because the
+  sync job's source range (`"A1:H"`, no row bound) pulls the source sheet's
+  *full* row extent (~1000 rows, Google Sheets' default), most of it blank
+  but with stray formatting/whitespace cells scattered through it, enough
+  to look "non-empty" under the loose check. Fixed by requiring a real
+  Timestamp *and* a non-blank ID instead — the two fields a row actually
+  needs to be trackable (and that `rowKey2_` depends on anyway).
+- **Session logouts mid-work, reported as "انتهاء المدة".** Traced through
+  both pages' code — session handling is byte-for-byte identical between
+  page 1 and page 2 (same `requireSession_`, same shared token). The real
+  cause: the 8h sliding TTL only slides on an authenticated call, so a tab
+  left open-but-idle (overnight, long gaps) for 8h+ correctly but
+  annoyingly expires on the next tick. Fixed with a silent keep-alive
+  (`resumeSession` pinged every 20 min while a session is active, on either
+  page) rather than just lengthening the TTL, so an actually-idle/closed
+  tab still times out.
+
+### Iterative refinements (all page-2-only, admin's requests one at a time)
+
+- طباعة → **استلام** (table headers, done-badge, `COLUMN_HEADERS2`, the
+  DONE_FIRST validation message) — page 1 keeps طباعة throughout.
+- **Pagination added to the Pending table too** (page 1 only paginates its
+  Done table) — `pendingPage2`, its own pager `data-pending-page` attribute
+  so its clicks don't collide with the Done table's pager in the same
+  `#tableWrap2` click listener.
+- **مسح column** (admin-only, Pending table only): new col R (`SHEET_COLUMN_COUNT2`
+  17→18), `setRowErased2` (admin-only, logs `erase` to `ActivityLog`).
+  Ticked → dims the row grey for admin; **excluded server-side** from any
+  scoped (secretary) read, so the secretary genuinely never receives the
+  row, not just a CSS hide. Reversible. `aggregateSummary2_`'s تراجع loop
+  updated to also exclude `erase` events (matching its existing `modify`
+  exclusion) so an un-erase doesn't pollute the (currently hidden) تراجع count.
+- **تعديل column hidden** on page 2's Done table and its button — the P/Q
+  data and `setRowModify2` endpoint are untouched, just no UI for it.
+- **Summary panel trimmed**: removed أنجاز, خطأ انجاز, تعديل, and Progres 2
+  columns, leaving السكرتارية | Pending | استلام | Progres 1.
+- **whoami2 bolded** to match page 1's `#whoami` (14px/700/#333) — was
+  falling through to the generic 12px grey `.whoami` class.
+- **Pending-count badge on the استفسارات button** — white pill showing the
+  true (unfiltered) total pending count from `TABS_DATA2`, role-scoped by
+  the server the same way the table itself is. Required switching page 2
+  from lazy-load-on-first-visit to eager-load-at-login (`enterDashboard()`
+  now also calls `enterPage2()`) so the badge is right from the moment you
+  log in; the now-dead `page2Loaded` lazy-load flag was removed.
+
+### Shipped
+
+@54 (the full page 2 build + all iterative refinements above, bundled —
+tested first on `@HEAD` before deploying), @55 (session keep-alive), @56
+(pending badge).
